@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RIVALS - Multiplayer FPS</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0a0f; font-family: 'Segoe UI', sans-serif; overflow: hidden; height: 100vh; }
+        
+        /* LOGIN/REGISTER */
+        #auth-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+        }
+        #auth-screen h1 { color: #e94560; font-size: 50px; text-shadow: 0 0 30px #e94560; margin-bottom: 30px; }
+        
+        .auth-form {
+            background: rgba(30, 30, 50, 0.9);
+            padding: 40px;
+            border-radius: 15px;
+            border: 2px solid #333;
+            width: 350px;
+        }
+        .auth-form h2 { color: #6366f1; margin-bottom: 20px; text-align: center; }
+        .auth-form input {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            background: #1a1a2e;
+            border: 2px solid #333;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+        }
+        .auth-form input:focus { border-color: #6366f1; outline: none; }
+        .auth-form button {
+            width: 100%;
+            padding: 12px;
+            background: #6366f1;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .auth-form button:hover { background: #818cf8; }
+        .auth-form .switch { color: #666; text-align: center; cursor: pointer; }
+        .auth-form .switch:hover { color: #888; }
+        
+        /* MAIN MENU */
+        #menu-screen { display: none; height: 100vh; background: linear-gradient(135deg, #1a1a2e, #16213e); overflow: auto; }
+        .menu-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background: rgba(0,0,0,0.5);
+        }
+        .menu-header h1 { color: #e94560; font-size: 28px; }
+        .user-info { display: flex; align-items: center; gap: 20px; }
+        .user-info span { color: #fbbf24; font-weight: bold; }
+        .logout-btn { padding: 8px 20px; background: #ef4444; border: none; border-radius: 6px; color: white; cursor: pointer; }
+        
+        .menu-content { padding: 30px; display: flex; gap: 30px; }
+        .menu-left { flex: 1; }
+        .menu-right { width: 300px; }
+        
+        .panel { background: rgba(30, 30, 50, 0.9); border-radius: 15px; padding: 20px; margin-bottom: 20px; }
+        .panel h3 { color: #6366f1; margin-bottom: 15px; }
+        
+        .mode-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .mode-btn {
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        .mode-btn:hover { transform: translateY(-5px); }
+        .mode-1v1 { background: linear-gradient(180deg, #22c55e, #16a34a); }
+        .mode-2v2 { background: linear-gradient(180deg, #3b82f6, #2563eb); }
+        .mode-5v5 { background: linear-gradient(180deg, #ef4444, #dc2626); }
+        .mode-btn .icon { font-size: 30px; }
+        .mode-btn .label { color: white; font-weight: bold; font-size: 18px; margin-top: 5px; }
+        
+        .room-list { max-height: 300px; overflow-y: auto; }
+        .room-item {
+            padding: 12px;
+            background: rgba(50, 50, 70, 0.8);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .room-item:hover { background: rgba(99, 102, 241, 0.3); }
+        .room-item .room-id { color: #fbbf24; font-weight: bold; }
+        .room-item .room-mode { color: #888; }
+        .room-item .room-players { color: #22c55e; }
+        
+        .create-room-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(180deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        
+        /* ROOM SCREEN */
+        #room-screen { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 100; }
+        .room-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: rgba(30, 30, 50, 0.9); }
+        .room-header h2 { color: #e94560; }
+        .leave-room-btn { padding: 10px 25px; background: #ef4444; border: none; border-radius: 8px; color: white; cursor: pointer; }
+        
+        .room-content { display: flex; height: calc(100vh - 80px); }
+        .room-left { flex: 2; padding: 20px; display: flex; flex-direction: column; }
+        .room-right { width: 350px; padding: 20px; background: rgba(30, 30, 50, 0.9); }
+        
+        .players-list { display: flex; gap: 20px; margin-bottom: 20px; }
+        .team-panel { flex: 1; padding: 15px; border-radius: 10px; }
+        .team-red { background: rgba(239, 68, 68, 0.2); border: 2px solid #ef4444; }
+        .team-blue { background: rgba(59, 130, 246, 0.2); border: 2px solid #3b82f6; }
+        .team-panel h4 { margin-bottom: 10px; }
+        .team-red h4 { color: #ef4444; }
+        .team-blue h4 { color: #3b82f6; }
+        .team-player { padding: 8px 12px; background: rgba(0,0,0,0.3); border-radius: 6px; margin-bottom: 5px; display: flex; justify-content: space-between; }
+        .team-player .host-badge { background: #fbbf24; color: black; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
+        .team-player .ready-badge { background: #22c55e; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
+        
+        .loadout-panel h4 { color: #6366f1; margin-bottom: 15px; }
+        .loadout-slots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .loadout-slot {
+            padding: 15px;
+            background: rgba(50, 50, 70, 0.8);
+            border: 2px solid #333;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .loadout-slot:hover { border-color: #6366f1; }
+        .loadout-slot.selected { border-color: #e94560; background: rgba(233, 69, 96, 0.2); }
+        .loadout-slot .slot-name { color: #fbbf24; font-size: 14px; }
+        .loadout-slot .slot-weapon { color: white; font-size: 12px; margin-top: 5px; }
+        
+        .start-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(180deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .start-btn:disabled { background: #333; cursor: not-allowed; }
+        
+        /* GAME SCREEN */
+        #game-screen { display: none; position: relative; width: 100vw; height: 100vh; }
+        #gameCanvas { width: 100%; height: 100%; cursor: crosshair; }
+        
+        /* HUD */
+        #hud { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+        .hud-top { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 30px; background: rgba(0,0,0,0.8); padding: 12px 40px; border-radius: 12px; }
+        .hud-stat { color: white; text-align: center; }
+        .hud-stat .label { color: #666; font-size: 11px; }
+        .hud-stat .value { color: #fbbf24; font-weight: bold; font-size: 20px; }
+        
+        .scoreboard { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; background: rgba(0,0,0,0.7); padding: 8px 25px; border-radius: 8px; }
+        .score-team { font-size: 28px; font-weight: bold; }
+        .score-team.red { color: #ef4444; }
+        .score-team.blue { color: #3b82f6; }
+        
+        .hud-bottom-left { position: absolute; bottom: 20px; left: 20px; }
+        .health-bar { width: 220px; }
+        .health-bar label { color: white; font-size: 12px; display: block; margin-bottom: 5px; }
+        .health-track { height: 18px; background: #222; border-radius: 9px; overflow: hidden; }
+        .health-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #22c55e); width: 100%; }
+        
+        .weapon-panel { position: absolute; bottom: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px 20px; border-radius: 12px; }
+        .weapon-name { color: #e94560; font-size: 18px; font-weight: bold; }
+        .weapon-ammo { color: #fbbf24; font-size: 14px; margin-top: 5px; }
+        
+        .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        .crosshair-dot { width: 4px; height: 4px; background: white; border-radius: 50%; }
+        .crosshair-line { position: absolute; background: rgba(255,255,255,0.8); }
+        .ch-left { width: 12px; height: 2px; left: -20px; top: 50%; transform: translateY(-50%); }
+        .ch-right { width: 12px; height: 2px; right: -20px; top: 50%; transform: translateY(-50%); }
+        .ch-top { width: 2px; height: 12px; left: 50%; top: -20px; transform: translateX(-50%); }
+        .ch-bottom { width: 2px; height: 12px; left: 50%; bottom: -20px; transform: translateX(-50%); }
+        
+        .player-list { position: absolute; top: 120px; right: 20px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; }
+        .player-list-item { color: white; font-size: 12px; padding: 5px; }
+        .player-list-item.dead { color: #666; text-decoration: line-through; }
+        
+        /* ERROR */
+        .error-msg { color: #ef4444; font-size: 14px; margin-bottom: 10px; display: none; }
+    </style>
+</head>
+<body>
+    <!-- AUTH SCREEN -->
+    <div id="auth-screen">
+        <h1>RIVALS</h1>
+        <div class="auth-form">
+            <h2 id="auth-title">LOGIN</h2>
+            <div class="error-msg" id="auth-error"></div>
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="doAuth()" id="auth-btn">LOGIN</button>
+            <div class="switch" onclick="toggleAuthMode()">
+                <span id="auth-switch">Don't have an account? Register</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MENU SCREEN -->
+    <div id="menu-screen">
+        <div class="menu-header">
+            <h1>RIVALS</h1>
+            <div class="user-info">
+                <span id="user-display">Username</span>
+                <span>🔑 <span id="user-keys">0</span></span>
+                <span>⭐ Lv <span id="user-level">1</span></span>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+        
+        <div class="menu-content">
+            <div class="menu-left">
+                <div class="panel">
+                    <h3>SELECT MODE</h3>
+                    <div class="mode-grid">
+                        <div class="mode-btn mode-1v1" onclick="selectMode('1v1')">
+                            <div class="icon">⚔️</div>
+                            <div class="label">1v1</div>
+                        </div>
+                        <div class="mode-btn mode-2v2" onclick="selectMode('2v2')">
+                            <div class="icon">👥</div>
+                            <div class="label">2v2</div>
+                        </div>
+                        <div class="mode-btn mode-5v5" onclick="selectMode('5v5')">
+                            <div class="icon">💀</div>
+                            <div class="label">5v5</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h3>CREATE ROOM</h3>
+                    <button class="create-room-btn" onclick="createRoom()">CREATE ROOM</button>
+                </div>
+            </div>
+            
+            <div class="menu-right">
+                <div class="panel">
+                    <h3>ROOMS</h3>
+                    <div class="room-list" id="room-list">
+                        <p style="color: #666;">No rooms available</p>
+                    </div>
+                    <button onclick="refreshRooms()" style="padding: 8px; background: #333; border: none; border-radius: 6px; color: white; cursor: pointer; width: 100%; margin-top: 10px;">Refresh</button>
+                </div>
+                
+                <div class="panel">
+                    <h3>STATS</h3>
+                    <p style="color: #888;">Wins: <span id="stat-wins" style="color: #22c55e;">0</span></p>
+                    <p style="color: #888;">Losses: <span id="stat-losses" style="color: #ef4444;">0</span></p>
+                    <p style="color: #888;">Kills: <span id="stat-kills" style="color: #fbbf24;">0</span></p>
+                    <p style="color: #888;">Deaths: <span id="stat-deaths">0</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ROOM SCREEN -->
+    <div id="room-screen">
+        <div class="room-header">
+            <h2>Room: <span id="room-id"></span></h2>
+            <button class="leave-room-btn" onclick="leaveRoom()">LEAVE ROOM</button>
+        </div>
+        
+        <div class="room-content">
+            <div class="room-left">
+                <div class="players-list">
+                    <div class="team-panel team-red">
+                        <h4>RED TEAM</h4>
+                        <div id="red-team-list"></div>
+                    </div>
+                    <div class="team-panel team-blue">
+                        <h4>BLUE TEAM</h4>
+                        <div id="blue-team-list"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="room-right">
+                <div class="loadout-panel">
+                    <h4>LOADOUT</h4>
+                    <div class="loadout-slots">
+                        <div class="loadout-slot selected" onclick="selectLoadoutSlot('primary', this)">
+                            <div class="slot-name">PRIMARY</div>
+                            <div class="slot-weapon" id="loadout-primary">Assault Rifle</div>
+                        </div>
+                        <div class="loadout-slot" onclick="selectLoadoutSlot('secondary', this)">
+                            <div class="slot-name">SECONDARY</div>
+                            <div class="slot-weapon" id="loadout-secondary">Handgun</div>
+                        </div>
+                        <div class="loadout-slot" onclick="selectLoadoutSlot('melee', this)">
+                            <div class="slot-name">MELEE</div>
+                            <div class="slot-weapon" id="loadout-melee">Fists</div>
+                        </div>
+                        <div class="loadout-slot" onclick="selectLoadoutSlot('utility', this)">
+                            <div class="slot-name">UTILITY</div>
+                            <div class="slot-weapon" id="loadout-utility">Grenade</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="start-btn" id="ready-btn" onclick="setReady()">READY</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- GAME SCREEN -->
+    <div id="game-screen">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="hud">
+            <div class="crosshair">
+                <div class="crosshair-dot"></div>
+                <div class="crosshair-line ch-left"></div>
+                <div class="crosshair-line ch-right"></div>
+                <div class="crosshair-line ch-top"></div>
+                <div class="crosshair-line ch-bottom"></div>
+            </div>
+            
+            <div class="hud-top">
+                <div class="hud-stat">
+                    <div class="label">ROUND</div>
+                    <div class="value" id="round-num">1</div>
+                </div>
+                <div class="hud-stat">
+                    <div class="label">TIME</div>
+                    <div class="value" id="round-time">120</div>
+                </div>
+            </div>
+            
+            <div class="scoreboard">
+                <span class="score-team red" id="red-score">0</span>
+                <span class="score-team blue" id="blue-score">0</span>
+            </div>
+            
+            <div class="player-list" id="player-list"></div>
+            
+            <div class="hud-bottom-left">
+                <div class="health-bar">
+                    <label>HEALTH</label>
+                    <div class="health-track">
+                        <div class="health-fill" id="health-fill"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="weapon-panel">
+                <div class="weapon-name" id="weapon-name">Assault Rifle</div>
+                <div class="weapon-ammo" id="weapon-ammo">30 / 30</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io('http://localhost:3001');
+        
+        socket.on('connect', () => console.log('Socket connected:', socket.id));
+        socket.on('connect_error', (err) => console.error('Connection error:', err));
+        
+        // State
+        let currentUser = null;
+        let currentRoom = null;
+        let isRegisterMode = false;
+        let selectedMode = '2v2';
+        let currentLoadoutSlot = 'primary';
+        let userLoadout = { primary: 'AssaultRifle', secondary: 'Handgun', melee: 'Fists', utility: 'Grenade' };
+        
+        // Game
+        let gameState = 'menu';
+        let player = { x: 0, y: 2, z: -30, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0, health: 100 };
+        let bullets = [];
+        let enemies = [];
+        let scores = { red: 0, blue: 0 };
+        
+        // Weapons (same as server)
+        const weapons = {
+            AssaultRifle: { name: 'Assault Rifle', damage: 15, fireRate: 80, maxAmmo: 30, speed: 20, color: '#6366f1' },
+            Shotgun: { name: 'Shotgun', damage: 12, fireRate: 700, maxAmmo: 8, speed: 12, color: '#f59e0b', count: 6 },
+            Sniper: { name: 'Sniper', damage: 120, fireRate: 1200, maxAmmo: 5, speed: 35, color: '#ef4444' },
+            SMG: { name: 'SMG', damage: 10, fireRate: 50, maxAmmo: 40, speed: 22, color: '#22c55e' },
+            Handgun: { name: 'Handgun', damage: 20, fireRate: 250, maxAmmo: 12, speed: 18, color: '#aaa' },
+            Exogun: { name: 'Exogun', damage: 25, fireRate: 300, maxAmmo: 10, speed: 16, color: '#a855f7' },
+            Fists: { name: 'Fists', damage: 25, fireRate: 500, maxAmmo: 0, speed: 0, color: '#22c55e', special: 'doublejump' },
+            Knife: { name: 'Knife', damage: 35, fireRate: 400, maxAmmo: 0, speed: 0, color: '#aaa' },
+            Daggers: { name: 'Daggers', damage: 20, fireRate: 300, maxAmmo: 0, speed: 5, color: '#22d3ee', speedboost: true },
+            Grenade: { name: 'Grenade', damage: 80, fireRate: 1500, maxAmmo: 2, speed: 12, color: '#ef4444', explosive: true },
+            Medkit: { name: 'Medkit', heal: 50, fireRate: 3000, maxAmmo: 2, color: '#4ade80' }
+        };
+        
+        // Canvas
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const keys = {};
+        
+        // Auth
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            document.getElementById('auth-title').textContent = isRegisterMode ? 'REGISTER' : 'LOGIN';
+            document.getElementById('auth-btn').textContent = isRegisterMode ? 'REGISTER' : 'LOGIN';
+            document.getElementById('auth-switch').textContent = isRegisterMode ? 'Have an account? Login' : "Don't have an account? Register";
+        }
+        
+        function doAuth() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showError('Please fill in all fields');
+                return;
+            }
+            
+            if (isRegisterMode) {
+                socket.emit('register', { username, password }, (result) => {
+                    if (result.success) {
+                        login(result.user);
+                    } else {
+                        showError(result.message);
+                    }
+                });
+            } else {
+                socket.emit('login', { username, password }, (result) => {
+                    if (result.success) {
+                        login(result.user);
+                    } else {
+                        showError(result.message);
+                    }
+                });
+            }
+        }
+        
+        function showError(msg) {
+            const el = document.getElementById('auth-error');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+        
+        function login(user) {
+            currentUser = user;
+            showMenu();
+        }
+        
+        function logout() {
+            socket.emit('logout');
+            currentUser = null;
+            document.getElementById('auth-screen').style.display = 'flex';
+            document.getElementById('menu-screen').style.display = 'none';
+        }
+        
+        function showMenu() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('menu-screen').style.display = 'block';
+            
+            document.getElementById('user-display').textContent = currentUser.username;
+            document.getElementById('user-keys').textContent = currentUser.keys;
+            document.getElementById('user-level').textContent = currentUser.level;
+            document.getElementById('stat-wins').textContent = currentUser.wins;
+            document.getElementById('stat-losses').textContent = currentUser.losses;
+            document.getElementById('stat-kills').textContent = currentUser.kills;
+            document.getElementById('stat-deaths').textContent = currentUser.deaths;
+            
+            refreshRooms();
+        }
+        
+        // Rooms
+        function selectMode(mode) {
+            selectedMode = mode;
+        }
+        
+        function createRoom() {
+            socket.emit('createRoom', selectedMode, (result) => {
+                if (result.success) {
+                    showRoom(result.room);
+                } else {
+                    alert(result.message);
+                }
+            });
+        }
+        
+        function refreshRooms() {
+            socket.emit('getRooms', (rooms) => {
+                const list = document.getElementById('room-list');
+                if (rooms.length === 0) {
+                    list.innerHTML = '<p style="color: #666;">No rooms available</p>';
+                } else {
+                    list.innerHTML = rooms.map(r => `
+                        <div class="room-item" onclick="joinRoom('${r.id}')">
+                            <div>
+                                <span class="room-id">${r.id}</span>
+                                <span class="room-mode">${r.mode}</span>
+                            </div>
+                            <span class="room-players">${r.players}/${r.maxPlayers}</span>
+                        </div>
+                    `).join('');
+                }
+            });
+        }
+        
+        function joinRoom(roomId) {
+            socket.emit('joinRoom', roomId, (result) => {
+                if (result.success) {
+                    showRoom(result.room);
+                } else {
+                    alert(result.message);
+                }
+            });
+        }
+        
+        function showRoom(room) {
+            currentRoom = room;
+            document.getElementById('menu-screen').style.display = 'none';
+            document.getElementById('room-screen').style.display = 'flex';
+            document.getElementById('room-id').textContent = room.id;
+            updateRoomUI();
+        }
+        
+        function leaveRoom() {
+            socket.emit('leaveRoom');
+            currentRoom = null;
+            document.getElementById('room-screen').style.display = 'none';
+            showMenu();
+        }
+        
+        function updateRoomUI() {
+            if (!currentRoom) return;
+            
+            const redPlayers = currentRoom.players.filter(p => p.team === 'red');
+            const bluePlayers = currentRoom.players.filter(p => p.team === 'blue');
+            
+            document.getElementById('red-team-list').innerHTML = redPlayers.map(p => `
+                <div class="team-player">
+                    <span>${p.username}</span>
+                    <div>
+                        ${p.username === currentRoom.host ? '<span class="host-badge">HOST</span>' : ''}
+                        ${p.ready ? '<span class="ready-badge">READY</span>' : ''}
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('blue-team-list').innerHTML = bluePlayers.map(p => `
+                <div class="team-player">
+                    <span>${p.username}</span>
+                    <div>
+                        ${p.username === currentRoom.host ? '<span class="host-badge">HOST</span>' : ''}
+                        ${p.ready ? '<span class="ready-badge">READY</span>' : ''}
+                    </div>
+                </div>
+            `).join('');
+            
+            // Update ready button
+            const myPlayer = currentRoom.players.find(p => p.username === currentUser.username);
+            document.getElementById('ready-btn').textContent = myPlayer?.ready ? 'UNREADY' : 'READY';
+            document.getElementById('ready-btn').disabled = false;
+        }
+        
+        function setReady() {
+            const myPlayer = currentRoom.players.find(p => p.username === currentUser.username);
+            socket.emit('setReady', !myPlayer?.ready);
+        }
+        
+        function selectLoadoutSlot(slot, el) {
+            document.querySelectorAll('.loadout-slot').forEach(s => s.classList.remove('selected'));
+            el.classList.add('selected');
+            currentLoadoutSlot = slot;
+            
+            // Show weapon options
+            const weaponsForSlot = {
+                primary: ['AssaultRifle', 'Shotgun', 'Sniper', 'SMG'],
+                secondary: ['Handgun', 'Exogun'],
+                melee: ['Fists', 'Knife', 'Daggers'],
+                utility: ['Grenade', 'Medkit']
+            };
+            
+            const weapon = userLoadout[slot];
+            document.getElementById(`loadout-${slot}`).textContent = weapons[weapon]?.name || 'None';
+            
+            socket.emit('setLoadout', userLoadout, (result) => {
+                if (!result.success) {
+                    alert(result.message);
+                }
+            });
+        }
+        
+        // Socket events
+        socket.on('roomUpdate', (room) => {
+            currentRoom = room;
+            updateRoomUI();
+        });
+        
+        socket.on('gameStart', (data) => {
+            startGame(data);
+        });
+        
+        socket.on('roundStart', (data) => {
+            document.getElementById('round-num').textContent = data.round;
+            document.getElementById('round-time').textContent = data.time;
+            
+            data.positions.forEach(p => {
+                if (p.username === currentUser.username) {
+                    player.x = p.position.x;
+                    player.y = p.position.y;
+                    player.z = p.position.z;
+                }
+            });
+            
+            player.health = 100;
+            bullets = [];
+            updateHUD();
+        });
+        
+        socket.on('roundEnd', (data) => {
+            scores = data.scores;
+            document.getElementById('red-score').textContent = scores.red;
+            document.getElementById('blue-score').textContent = scores.blue;
+        });
+        
+        socket.on('gameEnd', (data) => {
+            alert(`${data.winner.toUpperCase()} WINS! Final Score: ${data.scores.red} - ${data.scores.blue}`);
+            leaveRoom();
+        });
+        
+        socket.on('playerMoved', (data) => {
+            const enemy = enemies.find(e => e.username === data.username);
+            if (enemy) {
+                enemy.x = data.x;
+                enemy.y = data.y;
+                enemy.z = data.z;
+                enemy.yaw = data.yaw;
+            }
+        });
+        
+        socket.on('bulletFired', (data) => {
+            bullets.push(data);
+        });
+        
+        socket.on('playerKilled', (data) => {
+            if (data.victim === currentUser.username) {
+                player.health = 0;
+            }
+            const enemy = enemies.find(e => e.username === data.victim);
+            if (enemy) enemy.alive = false;
+        });
+        
+        // Game
+        function startGame(data) {
+            document.getElementById('room-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+            document.getElementById('hud').style.display = 'block';
+            canvas.requestPointerLock();
+            
+            gameState = 'playing';
+            scores = { red: 0, blue: 0 };
+            player.health = 100;
+            
+            // Setup enemies
+            enemies = data.players.filter(p => p.username !== currentUser.username).map(p => ({
+                username: p.username,
+                x: p.position?.x || 30,
+                y: p.position?.y || 2,
+                z: p.position?.z || 30,
+                yaw: 0,
+                health: 100,
+                alive: true,
+                team: p.team
+            }));
+            
+            canvas.addEventListener('mousemove', (e) => {
+                if (document.pointerLockElement === canvas) {
+                    player.yaw += e.movementX * 0.002;
+                    player.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, player.pitch - e.movementY * 0.002));
+                }
+            });
+        }
+        
+        let canShoot = true;
+        let lastShot = 0;
+        
+        document.addEventListener('mousedown', () => {
+            if (gameState !== 'playing') return;
+            
+            const weapon = weapons[userLoadout.primary];
+            const now = Date.now();
+            
+            if (now - lastShot < weapon.fireRate) return;
+            lastShot = now;
+            
+            const spread = (Math.random() - 0.5) * 5;
+            const pitch = player.pitch + spread * 0.01;
+            
+            const bullet = {
+                x: player.x,
+                y: player.y + 1,
+                z: player.z,
+                vx: Math.cos(player.yaw) * Math.cos(pitch) * weapon.speed,
+                vy: Math.sin(pitch) * weapon.speed,
+                vz: Math.sin(player.yaw) * Math.cos(pitch) * weapon.speed,
+                damage: weapon.damage,
+                color: weapon.color
+            };
+            
+            bullets.push(bullet);
+            socket.emit('shoot', bullet);
+            updateHUD();
+        });
+        
+        document.addEventListener('keydown', e => {
+            keys[e.key.toLowerCase()] = true;
+            if (e.key === ' ' && player.grounded) {
+                player.vy = 15;
+                player.grounded = false;
+            }
+        });
+        
+        document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+        
+        function update() {
+            if (gameState !== 'playing') return;
+            
+            const speed = 8;
+            let moveX = 0, moveZ = 0;
+            if (keys['w']) moveZ += 1;
+            if (keys['s']) moveZ -= 1;
+            if (keys['a']) moveX -= 1;
+            if (keys['d']) moveX += 1;
+            
+            if (moveX !== 0 || moveZ !== 0) {
+                const angle = Math.atan2(moveX, moveZ) + player.yaw;
+                player.vx = Math.sin(angle) * speed;
+                player.vz = Math.cos(angle) * speed;
+            } else {
+                player.vx *= 0.85;
+                player.vz *= 0.85;
+            }
+            
+            player.vy -= 0.8;
+            player.x += player.vx * 0.016;
+            player.y += player.vy * 0.016;
+            player.z += player.vz * 0.016;
+            
+            if (player.y <= 2) {
+                player.y = 2;
+                player.vy = 0;
+                player.grounded = true;
+            }
+            
+            // Bounds
+            player.x = Math.max(-48, Math.min(48, player.x));
+            player.z = Math.max(-48, Math.min(48, player.z));
+            
+            // Update bullets
+            bullets = bullets.filter(b => {
+                b.x += b.vx * 0.05;
+                b.y += b.vy * 0.05;
+                b.z += b.vz * 0.05;
+                
+                // Enemy hits
+                for (let e of enemies) {
+                    if (!e.alive) continue;
+                    const dist = Math.hypot(b.x - e.x, b.y - (e.y + 1), b.z - e.z);
+                    if (dist < 2) {
+                        e.health -= b.damage;
+                        if (e.health <= 0) {
+                            e.alive = false;
+                            socket.emit('kill', { target: e.username });
+                        }
+                        return false;
+                    }
+                }
+                
+                return Math.abs(b.x) < 50 && Math.abs(b.z) < 50 && b.y > 0;
+            });
+            
+            // Send position
+            socket.emit('playerUpdate', { x: player.x, y: player.y, z: player.z, yaw: player.yaw });
+        }
+        
+        function render() {
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Floor
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, canvas.height/2, canvas.width, canvas.height/2);
+            
+            // Grid
+            ctx.strokeStyle = 'rgba(99, 102, 241, 0.2)';
+            for (let i = -50; i <= 50; i += 10) {
+                drawLine(i, 0, -50, i, 0, 50);
+                drawLine(-50, 0, i, 50, 0, i);
+            }
+            
+            // Enemies
+            enemies.forEach(e => {
+                if (!e.alive) return;
+                const pos = project(e.x, e.y + 1, e.z);
+                if (!pos) return;
+                
+                const scale = 500 / pos.z;
+                const size = 25 * scale;
+                
+                ctx.fillStyle = e.team === 'red' ? '#ef4444' : '#3b82f6';
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, size/2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            // Bullets
+            bullets.forEach(b => {
+                const pos = project(b.x, b.y, b.z);
+                if (!pos) return;
+                
+                ctx.fillStyle = b.color;
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        function project(x, y, z) {
+            const dx = x - player.x;
+            const dy = y - player.y;
+            const dz = z - player.z;
+            
+            const cos = Math.cos(-player.yaw);
+            const sin = Math.sin(-player.yaw);
+            const rx = dx * cos - dz * sin;
+            const rz = dx * sin + dz * cos;
+            
+            if (rz <= 0.5) return null;
+            
+            const scale = 500 / rz;
+            return {
+                x: canvas.width/2 + rx * scale,
+                y: canvas.height/2 - dy * scale + player.pitch * 150,
+                z: rz
+            };
+        }
+        
+        function drawLine(x1, y1, z1, x2, y2, z2) {
+            const p1 = project(x1, y1, z1);
+            const p2 = project(x2, y2, z2);
+            if (p1 && p2) {
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+        }
+        
+        function updateHUD() {
+            document.getElementById('health-fill').style.width = player.health + '%';
+            const weapon = weapons[userLoadout.primary];
+            document.getElementById('weapon-name').textContent = weapon.name;
+            document.getElementById('weapon-ammo').textContent = '30 / ' + weapon.maxAmmo;
+        }
+        
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        gameLoop();
+    </script>
+</body>
+</html>

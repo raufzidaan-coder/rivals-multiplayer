@@ -1,0 +1,26 @@
+[
+  {
+    "username": "suiiiiiiib90",
+    "password": "67forlife",
+    "level": 1,
+    "keys": 10,
+    "xp": 0,
+    "wins": 0,
+    "losses": 0,
+    "kills": 0,
+    "deaths": 0,
+    "inventory": [
+      "AssaultRifle",
+      "Handgun",
+      "Fists",
+      "Grenade"
+    ],
+    "equipped": {
+      "primary": "AssaultRifle",
+      "secondary": "Handgun",
+      "melee": "Fists",
+      "utility": "Grenade"
+    },
+    "created": 1774368137450
+  }
+]
