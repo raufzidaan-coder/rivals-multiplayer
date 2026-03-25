@@ -458,31 +458,75 @@
         let roundTimeLeft = 120;
         let roundTimerInterval = null;
 
-        // Stars for sky (pre-generated)
-        let stars = [];
-        for (let i = 0; i < 200; i++) {
-            stars.push({
+        // Roblox Rivals visual state
+        let damageNumbers = [];
+        let killBannerTimer = 0;
+        let killBannerName = '';
+        let screenShakeTimer = 0;
+        let screenShakeIntensity = 0;
+        let damageIndicators = [];
+        let weaponRecoilTimer = 0;
+        let cameraSmoothedYaw = 0;
+        let cameraSmoothedPitch = 0;
+        let weaponSwayX = 0;
+        let weaponSwayY = 0;
+        let weaponSwayTargetX = 0;
+        let weaponSwayTargetY = 0;
+        let reloadAnimProgress = 0;
+
+        // Clouds for sky (pre-generated)
+        let clouds = [];
+        for (let i = 0; i < 30; i++) {
+            clouds.push({
                 angle: Math.random() * Math.PI * 2,
-                elevation: Math.random() * 0.8 + 0.1,
-                brightness: Math.random() * 0.7 + 0.3,
-                size: Math.random() * 1.5 + 0.5
+                elevation: Math.random() * 0.35 + 0.05,
+                width: 80 + Math.random() * 200,
+                height: 18 + Math.random() * 35,
+                speed: 0.00002 + Math.random() * 0.00004,
+                opacity: 0.2 + Math.random() * 0.35,
+                puffs: Math.floor(2 + Math.random() * 4)
             });
         }
 
-        // Arena obstacles (crates/boxes)
+        // Arena obstacles - Roblox Rivals style arena
         const obstacles = [
-            { x: 15, z: 15, w: 4, h: 3, d: 4, color: '#8B6914' },
-            { x: -15, z: 15, w: 3, h: 2, d: 3, color: '#7A5C12' },
-            { x: 15, z: -15, w: 5, h: 4, d: 3, color: '#8B6914' },
-            { x: -15, z: -15, w: 3, h: 3, d: 5, color: '#6B4E10' },
-            { x: 0, z: 25, w: 6, h: 2, d: 2, color: '#7A5C12' },
-            { x: 0, z: -25, w: 2, h: 5, d: 6, color: '#8B6914' },
-            { x: 30, z: 0, w: 3, h: 3, d: 3, color: '#6B4E10' },
-            { x: -30, z: 0, w: 4, h: 2, d: 4, color: '#7A5C12' },
-            { x: 20, z: -30, w: 3, h: 4, d: 3, color: '#8B6914' },
-            { x: -20, z: 30, w: 5, h: 3, d: 2, color: '#6B4E10' },
-            { x: 35, z: 20, w: 2, h: 6, d: 2, color: '#7A5C12' },
-            { x: -35, z: -20, w: 4, h: 2, d: 4, color: '#8B6914' },
+            // Concrete barriers (grey)
+            { x: 12, z: 0, w: 6, h: 1.5, d: 1.5, type: 'barrier', color: '#888888' },
+            { x: -12, z: 0, w: 6, h: 1.5, d: 1.5, type: 'barrier', color: '#888888' },
+            { x: 0, z: 18, w: 1.5, h: 1.5, d: 6, type: 'barrier', color: '#888888' },
+            { x: 0, z: -18, w: 1.5, h: 1.5, d: 6, type: 'barrier', color: '#888888' },
+            // Wooden crates (brown)
+            { x: 20, z: 15, w: 3, h: 3, d: 3, type: 'crate', color: '#8B6914' },
+            { x: -20, z: 15, w: 3, h: 3, d: 3, type: 'crate', color: '#7A5C12' },
+            { x: 20, z: -15, w: 3, h: 3, d: 3, type: 'crate', color: '#8B6914' },
+            { x: -20, z: -15, w: 3, h: 3, d: 3, type: 'crate', color: '#7A5C12' },
+            // Stacked crates
+            { x: 20, z: 15, w: 2.5, h: 5.5, d: 2.5, type: 'crate', color: '#9A7818' },
+            { x: -20, z: -15, w: 2.5, h: 5.5, d: 2.5, type: 'crate', color: '#9A7818' },
+            // Large metal containers (dark teal/grey)
+            { x: 30, z: 0, w: 5, h: 4, d: 8, type: 'container', color: '#4a6670' },
+            { x: -30, z: 0, w: 5, h: 4, d: 8, type: 'container', color: '#4a6670' },
+            // Elevated platforms / ramps
+            { x: 0, z: 30, w: 10, h: 2, d: 6, type: 'platform', color: '#666666' },
+            { x: 0, z: -30, w: 10, h: 2, d: 6, type: 'platform', color: '#666666' },
+            // Ramp slopes (visual only, using thin platforms)
+            { x: 7, z: 30, w: 4, h: 1, d: 6, type: 'platform', color: '#5a5a5a' },
+            { x: -7, z: -30, w: 4, h: 1, d: 6, type: 'platform', color: '#5a5a5a' },
+            // Extra cover around center
+            { x: 25, z: 25, w: 3, h: 2, d: 3, type: 'crate', color: '#8B6914' },
+            { x: -25, z: -25, w: 3, h: 2, d: 3, type: 'crate', color: '#7A5C12' },
+            { x: -25, z: 25, w: 4, h: 3, d: 2, type: 'container', color: '#556670' },
+            { x: 25, z: -25, w: 4, h: 3, d: 2, type: 'container', color: '#556670' },
+            // Small barriers near spawns
+            { x: 38, z: 38, w: 4, h: 1.2, d: 1.2, type: 'barrier', color: '#999999' },
+            { x: -38, z: -38, w: 4, h: 1.2, d: 1.2, type: 'barrier', color: '#999999' },
+            { x: 35, z: 10, w: 2, h: 5, d: 2, type: 'container', color: '#5a7080' },
+            { x: -35, z: -10, w: 2, h: 5, d: 2, type: 'container', color: '#5a7080' },
+            // Mid map cover
+            { x: 8, z: 8, w: 2, h: 1.8, d: 2, type: 'barrier', color: '#777777' },
+            { x: -8, z: -8, w: 2, h: 1.8, d: 2, type: 'barrier', color: '#777777' },
+            { x: -8, z: 8, w: 2, h: 1.8, d: 2, type: 'barrier', color: '#777777' },
+            { x: 8, z: -8, w: 2, h: 1.8, d: 2, type: 'barrier', color: '#777777' },
         ];
 
         // Weapons database (same as server)
@@ -539,6 +583,35 @@
         });
 
         const keys = {};
+
+        // Pre-generate ground texture pattern
+        let groundPattern = null;
+        function createGroundPattern() {
+            const pc = document.createElement('canvas');
+            pc.width = 64;
+            pc.height = 64;
+            const pctx = pc.getContext('2d');
+            // Concrete-like texture
+            pctx.fillStyle = '#8a8f94';
+            pctx.fillRect(0, 0, 64, 64);
+            // Subtle noise
+            for (let i = 0; i < 200; i++) {
+                const rx = Math.random() * 64;
+                const ry = Math.random() * 64;
+                const v = 120 + Math.random() * 40;
+                pctx.fillStyle = `rgba(${v},${v},${v},0.15)`;
+                pctx.fillRect(rx, ry, 1 + Math.random() * 2, 1 + Math.random() * 2);
+            }
+            // Grid lines (concrete slabs)
+            pctx.strokeStyle = 'rgba(0,0,0,0.12)';
+            pctx.lineWidth = 1;
+            pctx.beginPath();
+            pctx.moveTo(0, 0); pctx.lineTo(64, 0);
+            pctx.moveTo(0, 0); pctx.lineTo(0, 64);
+            pctx.stroke();
+            groundPattern = ctx.createPattern(pc, 'repeat');
+        }
+        createGroundPattern();
 
         // ============== AUTH (unchanged) ==============
         function toggleAuthMode() {
@@ -752,6 +825,8 @@
             isDead = false;
             bullets = [];
             particles = [];
+            damageNumbers = [];
+            damageIndicators = [];
             initAmmo();
         });
 
@@ -767,6 +842,8 @@
         socket.on('playerMoved', (data) => {
             const enemy = enemies.find(e => e.username === data.username);
             if (enemy) {
+                enemy.prevX = enemy.x;
+                enemy.prevZ = enemy.z;
                 enemy.x = data.x;
                 enemy.y = data.y;
                 enemy.z = data.z;
@@ -782,6 +859,15 @@
             if (data.target === currentUser.username) {
                 player.health = Math.max(0, player.health - data.damage);
                 damageFlashTimer = 300;
+                screenShakeTimer = 200;
+                screenShakeIntensity = 4 + data.damage * 0.1;
+                // Directional damage indicator
+                if (data.attackerX !== undefined && data.attackerZ !== undefined) {
+                    const angle = Math.atan2(data.attackerX - player.x, data.attackerZ - player.z);
+                    damageIndicators.push({ angle: angle, timer: 1000 });
+                } else {
+                    damageIndicators.push({ angle: player.yaw + Math.PI, timer: 1000 });
+                }
                 if (player.health <= 0) {
                     isDead = true;
                     deathTimer = 3000;
@@ -795,6 +881,10 @@
                 isDead = true;
                 deathTimer = 3000;
             }
+            if (data.killer === currentUser.username && data.victim !== currentUser.username) {
+                killBannerTimer = 2500;
+                killBannerName = data.victim;
+            }
             const enemy = enemies.find(e => e.username === data.victim);
             if (enemy) enemy.alive = false;
 
@@ -802,6 +892,7 @@
             killFeed.unshift({
                 killer: data.killer,
                 victim: data.victim,
+                weapon: data.weapon || 'Unknown',
                 time: Date.now()
             });
             if (killFeed.length > 5) killFeed.pop();
@@ -852,19 +943,34 @@
         }
 
         // ============== PARTICLE SYSTEM ==============
-        function spawnParticles(x, y, z, color, count, speed) {
+        function spawnParticles(x, y, z, color, count, speed, isSquare) {
             for (let i = 0; i < count; i++) {
                 particles.push({
                     x, y, z,
                     vx: (Math.random() - 0.5) * speed,
-                    vy: Math.random() * speed * 0.5,
+                    vy: Math.random() * speed * 0.5 + 1,
                     vz: (Math.random() - 0.5) * speed,
                     color: color,
                     life: 500 + Math.random() * 500,
                     maxLife: 500 + Math.random() * 500,
-                    size: 1 + Math.random() * 2
+                    size: 1.5 + Math.random() * 2.5,
+                    isSquare: isSquare !== undefined ? isSquare : true,
+                    rotation: Math.random() * Math.PI * 2,
+                    rotSpeed: (Math.random() - 0.5) * 5
                 });
             }
+        }
+
+        // ============== DAMAGE NUMBERS ==============
+        function spawnDamageNumber(x, y, z, damage) {
+            damageNumbers.push({
+                x, y: y + 2, z,
+                damage: damage,
+                life: 1200,
+                maxLife: 1200,
+                vy: 3,
+                offsetX: (Math.random() - 0.5) * 2
+            });
         }
 
         // ============== GAME START ==============
@@ -890,12 +996,16 @@
             isDead = false;
             activeSlot = 'primary';
             killFeed = [];
+            damageNumbers = [];
+            damageIndicators = [];
 
             enemies = data.players.filter(p => p.username !== currentUser.username).map(p => ({
                 username: p.username,
                 x: p.position?.x || 30,
                 y: p.position?.y || 2,
                 z: p.position?.z || 30,
+                prevX: p.position?.x || 30,
+                prevZ: p.position?.z || 30,
                 yaw: 0,
                 health: 100,
                 alive: true,
@@ -939,6 +1049,7 @@
 
             lastShot = now;
             muzzleFlashTimer = 80;
+            weaponRecoilTimer = 150;
             crosshairSpread = Math.min(crosshairSpread + 8, 30);
 
             // Shotgun spread: multiple pellets
@@ -966,12 +1077,13 @@
                             if (diff < 0.8 || diff > Math.PI * 2 - 0.8) {
                                 e.health -= weapon.damage;
                                 hitMarkerTimer = 200;
-                                spawnParticles(e.x, e.y + 1, e.z, '#ff0', 8, 3);
+                                spawnParticles(e.x, e.y + 1, e.z, '#ff4444', 8, 3, true);
+                                spawnDamageNumber(e.x, e.y + 1, e.z, weapon.damage);
                                 socket.emit('hit', { target: e.username, damage: weapon.damage });
                                 if (e.health <= 0) {
                                     e.alive = false;
                                     socket.emit('kill', { target: e.username });
-                                    spawnParticles(e.x, e.y + 1, e.z, '#f00', 20, 5);
+                                    spawnParticles(e.x, e.y + 1, e.z, '#ff0000', 20, 5, true);
                                 }
                             }
                         }
@@ -1075,7 +1187,38 @@
             if (damageFlashTimer > 0) damageFlashTimer -= dt * 1000;
             if (hitMarkerTimer > 0) hitMarkerTimer -= dt * 1000;
             if (deathTimer > 0) deathTimer -= dt * 1000;
+            if (killBannerTimer > 0) killBannerTimer -= dt * 1000;
+            if (screenShakeTimer > 0) screenShakeTimer -= dt * 1000;
+            if (weaponRecoilTimer > 0) weaponRecoilTimer -= dt * 1000;
             crosshairSpread = Math.max(0, crosshairSpread - dt * 40);
+
+            // Camera smoothing
+            cameraSmoothedYaw += (player.yaw - cameraSmoothedYaw) * 0.15;
+            cameraSmoothedPitch += (player.pitch - cameraSmoothedPitch) * 0.15;
+
+            // Weapon sway smoothing
+            const isMoving = keys['w'] || keys['s'] || keys['a'] || keys['d'] || joystickActive ||
+                Math.abs(gamepadMoveInput.x) > 0.1 || Math.abs(gamepadMoveInput.y) > 0.1;
+            const swaySpeed = isMoving ? 0.006 : 0.002;
+            const swayAmount = isMoving ? 8 : 3;
+            weaponSwayTargetX = Math.sin(now * swaySpeed) * swayAmount;
+            weaponSwayTargetY = Math.abs(Math.cos(now * swaySpeed * 1.5)) * swayAmount * 0.7;
+            weaponSwayX += (weaponSwayTargetX - weaponSwayX) * 0.1;
+            weaponSwayY += (weaponSwayTargetY - weaponSwayY) * 0.1;
+
+            // Damage indicators decay
+            damageIndicators = damageIndicators.filter(d => {
+                d.timer -= dt * 1000;
+                return d.timer > 0;
+            });
+
+            // Damage numbers update
+            damageNumbers = damageNumbers.filter(d => {
+                d.y += d.vy * dt;
+                d.x += (d.offsetX || 0) * dt;
+                d.life -= dt * 1000;
+                return d.life > 0;
+            });
 
             // Reload timer
             if (isReloading) {
@@ -1092,28 +1235,28 @@
             // Movement (keyboard + joystick + gamepad)
             const speed = 8;
             let moveX = 0, moveZ = 0;
-            let isMoving = false;
-            if (keys['w']) { moveZ -= 1; isMoving = true; }
-            if (keys['s']) { moveZ += 1; isMoving = true; }
-            if (keys['a']) { moveX += 1; isMoving = true; }
-            if (keys['d']) { moveX -= 1; isMoving = true; }
+            let playerIsMoving = false;
+            if (keys['w']) { moveZ -= 1; playerIsMoving = true; }
+            if (keys['s']) { moveZ += 1; playerIsMoving = true; }
+            if (keys['a']) { moveX += 1; playerIsMoving = true; }
+            if (keys['d']) { moveX -= 1; playerIsMoving = true; }
 
             // Touch joystick input (joystickInput: x>0=right, y>0=down on screen)
             // Game axes: moveZ-=1 is forward(W), moveX+=1 is left(A), moveX-=1 is right(D)
             if (joystickActive && (Math.abs(joystickInput.x) > 0.1 || Math.abs(joystickInput.y) > 0.1)) {
                 moveX -= joystickInput.x;  // right on stick = right in game (D)
                 moveZ += joystickInput.y;  // up on stick (neg y) = forward (W: moveZ-=1)
-                isMoving = true;
+                playerIsMoving = true;
             }
 
             // Gamepad left stick input (same axis convention)
             if (Math.abs(gamepadMoveInput.x) > 0 || Math.abs(gamepadMoveInput.y) > 0) {
                 moveX -= gamepadMoveInput.x;
                 moveZ += gamepadMoveInput.y;
-                isMoving = true;
+                playerIsMoving = true;
             }
 
-            if (isMoving) crosshairSpread = Math.min(crosshairSpread + dt * 10, 15);
+            if (playerIsMoving) crosshairSpread = Math.min(crosshairSpread + dt * 10, 15);
 
             if (moveX !== 0 || moveZ !== 0) {
                 const angle = Math.atan2(moveX, moveZ) + player.yaw;
@@ -1171,7 +1314,7 @@
                     if (b.x > ob.x - ob.w/2 && b.x < ob.x + ob.w/2 &&
                         b.y > 0 && b.y < ob.h &&
                         b.z > ob.z - ob.d/2 && b.z < ob.z + ob.d/2) {
-                        spawnParticles(b.x, b.y, b.z, '#aa8833', 5, 2);
+                        spawnParticles(b.x, b.y, b.z, '#aaaaaa', 6, 2, true);
                         return false;
                     }
                 }
@@ -1184,12 +1327,13 @@
                         if (dist < 2) {
                             e.health -= b.damage;
                             hitMarkerTimer = 200;
-                            spawnParticles(e.x, e.y + 1, e.z, '#ff0', 8, 3);
+                            spawnParticles(e.x, e.y + 1, e.z, '#ff4444', 10, 3, true);
+                            spawnDamageNumber(e.x, e.y + 1, e.z, b.damage);
                             socket.emit('hit', { target: e.username, damage: b.damage });
                             if (e.health <= 0) {
                                 e.alive = false;
                                 socket.emit('kill', { target: e.username });
-                                spawnParticles(e.x, e.y + 1, e.z, '#f00', 20, 5);
+                                spawnParticles(e.x, e.y + 1, e.z, '#ff0000', 25, 5, true);
                             }
                             return false;
                         }
@@ -1198,7 +1342,7 @@
 
                 // Ground hit
                 if (b.y <= 0) {
-                    spawnParticles(b.x, 0.1, b.z, b.color || '#fff', 4, 2);
+                    spawnParticles(b.x, 0.1, b.z, '#888888', 5, 2, true);
                     return false;
                 }
 
@@ -1212,6 +1356,7 @@
                 p.z += p.vz * dt;
                 p.vy -= 5 * dt;
                 p.life -= dt * 1000;
+                if (p.rotation !== undefined) p.rotation += (p.rotSpeed || 0) * dt;
                 return p.life > 0;
             });
 
@@ -1237,9 +1382,18 @@
 
             const fov = 500;
             const scale = fov / rz;
+
+            // Screen shake offset
+            let shakeX = 0, shakeY = 0;
+            if (screenShakeTimer > 0) {
+                const shakePct = screenShakeTimer / 200;
+                shakeX = (Math.random() - 0.5) * screenShakeIntensity * shakePct;
+                shakeY = (Math.random() - 0.5) * screenShakeIntensity * shakePct;
+            }
+
             return {
-                x: canvas.width/2 + rx * scale,
-                y: canvas.height/2 - (dy - player.pitch * rz * 0.3) * scale,
+                x: canvas.width/2 + rx * scale + shakeX,
+                y: canvas.height/2 - (dy - player.pitch * rz * 0.3) * scale + shakeY,
                 z: rz,
                 scale: scale
             };
@@ -1277,64 +1431,152 @@
             const W = canvas.width;
             const H = canvas.height;
 
-            // --- SKY ---
+            // --- SKY (Roblox Rivals: rich gradient blue sky with warm horizon) ---
             const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.6);
-            skyGrad.addColorStop(0, '#050510');
-            skyGrad.addColorStop(0.4, '#0a0a2e');
-            skyGrad.addColorStop(0.7, '#1a1040');
-            skyGrad.addColorStop(1, '#2a1535');
+            skyGrad.addColorStop(0, '#3a7bd5');
+            skyGrad.addColorStop(0.15, '#5a9be6');
+            skyGrad.addColorStop(0.35, '#7cb8f0');
+            skyGrad.addColorStop(0.55, '#a0d0f5');
+            skyGrad.addColorStop(0.75, '#c8e2f8');
+            skyGrad.addColorStop(1, '#e8eecc');
             ctx.fillStyle = skyGrad;
             ctx.fillRect(0, 0, W, H);
 
-            // Stars
+            // Warm lighting overlay at horizon
+            const horizonGrad = ctx.createLinearGradient(0, H * 0.3, 0, H * 0.55);
+            horizonGrad.addColorStop(0, 'rgba(255,230,180,0)');
+            horizonGrad.addColorStop(0.7, 'rgba(255,220,160,0.08)');
+            horizonGrad.addColorStop(1, 'rgba(255,200,140,0.12)');
+            ctx.fillStyle = horizonGrad;
+            ctx.fillRect(0, 0, W, H);
+
+            // Clouds (puffy Roblox style)
             const pitchOffset = player.pitch * 150;
-            stars.forEach(s => {
-                const screenAngle = s.angle - player.yaw;
-                let sx = W/2 + Math.cos(screenAngle) * W * 0.8;
-                let sy = H * 0.3 - s.elevation * H * 0.4 + pitchOffset;
-                // Wrap horizontally
-                sx = ((sx % W) + W) % W;
-                if (sy > 0 && sy < H * 0.7) {
-                    const twinkle = 0.7 + Math.sin(performance.now() * 0.003 + s.angle * 10) * 0.3;
-                    ctx.fillStyle = `rgba(255, 255, 255, ${s.brightness * twinkle})`;
+            clouds.forEach(c => {
+                c.angle += c.speed;
+                const screenAngle = c.angle - player.yaw;
+                let cx = W/2 + Math.cos(screenAngle) * W * 0.9;
+                let cy = H * 0.12 - c.elevation * H * 0.3 + pitchOffset;
+                cx = ((cx % (W + c.width)) + W + c.width) % (W + c.width) - c.width/2;
+                if (cy > -60 && cy < H * 0.5) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${c.opacity})`;
+                    const cw = c.width;
+                    const ch = c.height;
+                    // Multiple puffy ellipses for cloud shape
+                    for (let p = 0; p < c.puffs; p++) {
+                        const px = cx + (p - c.puffs/2) * cw * 0.22;
+                        const py = cy + Math.sin(p * 1.7) * ch * 0.15;
+                        const pw = cw * (0.25 + Math.abs(Math.sin(p * 2.3)) * 0.2);
+                        const ph = ch * (0.55 + Math.abs(Math.cos(p * 1.4)) * 0.35);
+                        ctx.beginPath();
+                        ctx.ellipse(px, py, pw, ph, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    // Soft bottom highlight
+                    ctx.fillStyle = `rgba(220, 230, 255, ${c.opacity * 0.3})`;
                     ctx.beginPath();
-                    ctx.arc(sx, sy, s.size, 0, Math.PI * 2);
+                    ctx.ellipse(cx, cy + ch * 0.3, cw * 0.35, ch * 0.2, 0, 0, Math.PI * 2);
                     ctx.fill();
                 }
             });
 
-            // --- GROUND with perspective grid ---
-            // Draw ground plane
-            const groundGrad = ctx.createLinearGradient(0, H * 0.4, 0, H);
-            groundGrad.addColorStop(0, '#1a1a2e');
-            groundGrad.addColorStop(0.3, '#15152a');
-            groundGrad.addColorStop(1, '#0e0e1a');
-            ctx.fillStyle = groundGrad;
-            ctx.fillRect(0, H * 0.35, W, H * 0.65);
+            // --- GROUND (concrete textured with perspective) ---
+            // Draw ground as a gradient that simulates distance
+            const gndTop = H * 0.35 + pitchOffset * 0.5;
+            const groundGrad2 = ctx.createLinearGradient(0, gndTop, 0, H);
+            groundGrad2.addColorStop(0, '#a0a5aa');
+            groundGrad2.addColorStop(0.15, '#909599');
+            groundGrad2.addColorStop(0.4, '#838890');
+            groundGrad2.addColorStop(0.7, '#767b82');
+            groundGrad2.addColorStop(1, '#6b7075');
+            ctx.fillStyle = groundGrad2;
+            ctx.fillRect(0, Math.max(0, gndTop), W, H);
 
-            // Grid lines with perspective
-            ctx.strokeStyle = 'rgba(99, 102, 241, 0.15)';
+            // Concrete texture grid lines
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.07)';
             ctx.lineWidth = 1;
+            for (let i = -50; i <= 50; i += 10) {
+                drawLine3D(i, 0, -50, i, 0, 50);
+                drawLine3D(-50, 0, i, 50, 0, i);
+            }
+            // Finer detail grid
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.03)';
             for (let i = -50; i <= 50; i += 5) {
                 drawLine3D(i, 0, -50, i, 0, 50);
                 drawLine3D(-50, 0, i, 50, 0, i);
             }
 
-            // Arena boundary lines
-            ctx.strokeStyle = 'rgba(233, 69, 96, 0.4)';
-            ctx.lineWidth = 2;
-            drawLine3D(-50, 0, -50, 50, 0, -50);
-            drawLine3D(50, 0, -50, 50, 0, 50);
-            drawLine3D(50, 0, 50, -50, 0, 50);
-            drawLine3D(-50, 0, 50, -50, 0, -50);
-            // Vertical boundary posts at corners
-            drawLine3D(-50, 0, -50, -50, 5, -50);
-            drawLine3D(50, 0, -50, 50, 5, -50);
-            drawLine3D(50, 0, 50, 50, 5, 50);
-            drawLine3D(-50, 0, 50, -50, 5, 50);
+            // --- TEAM SPAWN MARKINGS ---
+            // Red team spawn area (positive x,z corner)
+            drawQuad(38, 0.01, 32, 48, 0.01, 32, 48, 0.01, 48, 38, 0.01, 48, 'rgba(255, 68, 68, 0.12)');
+            drawQuad(38, 0.02, 32, 48, 0.02, 32, 48, 0.02, 32.4, 38, 0.02, 32.4, 'rgba(255, 68, 68, 0.35)');
+            drawQuad(38, 0.02, 47.6, 48, 0.02, 47.6, 48, 0.02, 48, 38, 0.02, 48, 'rgba(255, 68, 68, 0.35)');
+            drawQuad(38, 0.02, 32, 38.4, 0.02, 32, 38.4, 0.02, 48, 38, 0.02, 48, 'rgba(255, 68, 68, 0.35)');
+            drawQuad(47.6, 0.02, 32, 48, 0.02, 32, 48, 0.02, 48, 47.6, 0.02, 48, 'rgba(255, 68, 68, 0.35)');
+            // Blue team spawn area (negative x,z corner)
+            drawQuad(-48, 0.01, -48, -38, 0.01, -48, -38, 0.01, -32, -48, 0.01, -32, 'rgba(68, 136, 255, 0.12)');
+            drawQuad(-48, 0.02, -32, -38, 0.02, -32, -38, 0.02, -32.4, -48, 0.02, -32.4, 'rgba(68, 136, 255, 0.35)');
+            drawQuad(-48, 0.02, -48, -38, 0.02, -48, -38, 0.02, -47.6, -48, 0.02, -47.6, 'rgba(68, 136, 255, 0.35)');
+            drawQuad(-48, 0.02, -48, -47.6, 0.02, -48, -47.6, 0.02, -32, -48, 0.02, -32, 'rgba(68, 136, 255, 0.35)');
+            drawQuad(-38.4, 0.02, -48, -38, 0.02, -48, -38, 0.02, -32, -38.4, 0.02, -32, 'rgba(68, 136, 255, 0.35)');
 
-            // --- OBSTACLES (crates) ---
-            // Sort by distance for painter's algorithm
+            // Center line marking
+            drawQuad(-0.15, 0.02, -48, 0.15, 0.02, -48, 0.15, 0.02, 48, -0.15, 0.02, 48, 'rgba(255, 255, 255, 0.06)');
+            drawQuad(-48, 0.02, -0.15, 48, 0.02, -0.15, 48, 0.02, 0.15, -48, 0.02, 0.15, 'rgba(255, 255, 255, 0.06)');
+
+            // --- ARENA WALLS (perimeter) with Roblox look ---
+            const wallH = 8;
+            // Wall colors with subtle shading
+            const wallFront = '#606060';
+            const wallSide = '#505050';
+            const wallDark = '#454545';
+            const wallTop = '#707070';
+
+            // North wall (-z)
+            drawQuad(-50, 0, -50, 50, 0, -50, 50, wallH, -50, -50, wallH, -50, wallFront);
+            // South wall (+z)
+            drawQuad(-50, 0, 50, 50, 0, 50, 50, wallH, 50, -50, wallH, 50, wallFront);
+            // West wall (-x)
+            drawQuad(-50, 0, -50, -50, 0, 50, -50, wallH, 50, -50, wallH, -50, wallSide);
+            // East wall (+x)
+            drawQuad(50, 0, -50, 50, 0, 50, 50, wallH, 50, 50, wallH, -50, wallSide);
+
+            // Wall panel lines (horizontal)
+            ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+            ctx.lineWidth = 1;
+            for (let wh = 2; wh < wallH; wh += 2) {
+                drawLine3D(-50, wh, -50, 50, wh, -50);
+                drawLine3D(-50, wh, 50, 50, wh, 50);
+                drawLine3D(-50, wh, -50, -50, wh, 50);
+                drawLine3D(50, wh, -50, 50, wh, 50);
+            }
+            // Vertical panel lines
+            for (let wp = -40; wp <= 40; wp += 10) {
+                drawLine3D(wp, 0, -50, wp, wallH, -50);
+                drawLine3D(wp, 0, 50, wp, wallH, 50);
+            }
+            for (let wp = -40; wp <= 40; wp += 10) {
+                drawLine3D(-50, 0, wp, -50, wallH, wp);
+                drawLine3D(50, 0, wp, 50, wallH, wp);
+            }
+
+            // Wall top edges (bright highlight)
+            ctx.strokeStyle = 'rgba(180,180,180,0.4)';
+            ctx.lineWidth = 2;
+            drawLine3D(-50, wallH, -50, 50, wallH, -50);
+            drawLine3D(50, wallH, -50, 50, wallH, 50);
+            drawLine3D(50, wallH, 50, -50, wallH, 50);
+            drawLine3D(-50, wallH, 50, -50, wallH, -50);
+
+            // Wall base trim
+            ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+            ctx.lineWidth = 3;
+            drawLine3D(-50, 0.1, -50, 50, 0.1, -50);
+            drawLine3D(50, 0.1, -50, 50, 0.1, 50);
+            drawLine3D(50, 0.1, 50, -50, 0.1, 50);
+            drawLine3D(-50, 0.1, 50, -50, 0.1, -50);
+
+            // --- OBSTACLES ---
             const sortedObs = obstacles.map(ob => {
                 const dx = ob.x - player.x;
                 const dz = ob.z - player.z;
@@ -1344,47 +1586,107 @@
             sortedObs.forEach(ob => {
                 const x = ob.x, z = ob.z;
                 const hw = ob.w/2, hd = ob.d/2, h = ob.h;
-
-                // Determine which faces are visible
                 const viewDx = x - player.x;
                 const viewDz = z - player.z;
 
                 const baseColor = ob.color;
-                // Parse color to darken/lighten
                 const r = parseInt(baseColor.slice(1,3), 16);
                 const g = parseInt(baseColor.slice(3,5), 16);
                 const b = parseInt(baseColor.slice(5,7), 16);
 
-                // Draw back faces first
+                // Enhanced shading for Roblox look
+                const topColor = `rgb(${Math.min(255,r*1.2)|0},${Math.min(255,g*1.2)|0},${Math.min(255,b*1.2)|0})`;
+                const sideColor1 = `rgb(${r*0.9|0},${g*0.9|0},${b*0.9|0})`;
+                const sideColor2 = `rgb(${r*0.72|0},${g*0.72|0},${b*0.72|0})`;
+                const outlineColor = `rgba(0,0,0,0.2)`;
+
                 // Front face (facing -z)
                 if (viewDz < -hd) {
-                    drawQuad(x-hw, 0, z-hd, x+hw, 0, z-hd, x+hw, h, z-hd, x-hw, h, z-hd,
-                        `rgb(${r*0.7|0},${g*0.7|0},${b*0.7|0})`);
+                    drawQuad(x-hw, 0, z-hd, x+hw, 0, z-hd, x+hw, h, z-hd, x-hw, h, z-hd, sideColor1);
                 }
                 // Back face (facing +z)
                 if (viewDz > hd) {
-                    drawQuad(x-hw, 0, z+hd, x+hw, 0, z+hd, x+hw, h, z+hd, x-hw, h, z+hd,
-                        `rgb(${r*0.7|0},${g*0.7|0},${b*0.7|0})`);
+                    drawQuad(x-hw, 0, z+hd, x+hw, 0, z+hd, x+hw, h, z+hd, x-hw, h, z+hd, sideColor1);
                 }
                 // Left face (facing -x)
                 if (viewDx < -hw) {
-                    drawQuad(x-hw, 0, z-hd, x-hw, 0, z+hd, x-hw, h, z+hd, x-hw, h, z-hd,
-                        `rgb(${r*0.6|0},${g*0.6|0},${b*0.6|0})`);
+                    drawQuad(x-hw, 0, z-hd, x-hw, 0, z+hd, x-hw, h, z+hd, x-hw, h, z-hd, sideColor2);
                 }
                 // Right face (facing +x)
                 if (viewDx > hw) {
-                    drawQuad(x+hw, 0, z-hd, x+hw, 0, z+hd, x+hw, h, z+hd, x+hw, h, z-hd,
-                        `rgb(${r*0.6|0},${g*0.6|0},${b*0.6|0})`);
+                    drawQuad(x+hw, 0, z-hd, x+hw, 0, z+hd, x+hw, h, z+hd, x+hw, h, z-hd, sideColor2);
                 }
                 // Top face
-                drawQuad(x-hw, h, z-hd, x+hw, h, z-hd, x+hw, h, z+hd, x-hw, h, z+hd,
-                    `rgb(${Math.min(255,r*1.1)|0},${Math.min(255,g*1.1)|0},${Math.min(255,b*1.1)|0})`);
+                drawQuad(x-hw, h, z-hd, x+hw, h, z-hd, x+hw, h, z+hd, x-hw, h, z+hd, topColor);
 
-                // Crate cross pattern on top
-                ctx.strokeStyle = `rgba(0,0,0,0.3)`;
-                ctx.lineWidth = 1;
-                drawLine3D(x-hw, h+0.01, z-hd, x+hw, h+0.01, z+hd);
-                drawLine3D(x+hw, h+0.01, z-hd, x-hw, h+0.01, z+hd);
+                // Edge outlines for Roblox blocky feel
+                ctx.strokeStyle = outlineColor;
+                ctx.lineWidth = 1.5;
+                // Top edges
+                drawLine3D(x-hw, h, z-hd, x+hw, h, z-hd);
+                drawLine3D(x+hw, h, z-hd, x+hw, h, z+hd);
+                drawLine3D(x+hw, h, z+hd, x-hw, h, z+hd);
+                drawLine3D(x-hw, h, z+hd, x-hw, h, z-hd);
+                // Vertical edges
+                drawLine3D(x-hw, 0, z-hd, x-hw, h, z-hd);
+                drawLine3D(x+hw, 0, z-hd, x+hw, h, z-hd);
+                drawLine3D(x-hw, 0, z+hd, x-hw, h, z+hd);
+                drawLine3D(x+hw, 0, z+hd, x+hw, h, z+hd);
+
+                // Type-specific details
+                if (ob.type === 'crate') {
+                    // Cross pattern on visible faces + planks
+                    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                    ctx.lineWidth = 1.5;
+                    drawLine3D(x-hw, h+0.01, z-hd, x+hw, h+0.01, z+hd);
+                    drawLine3D(x+hw, h+0.01, z-hd, x-hw, h+0.01, z+hd);
+                    // Horizontal plank lines on visible sides
+                    for (let rh = h * 0.33; rh < h; rh += h * 0.33) {
+                        if (viewDz < -hd) drawLine3D(x-hw, rh, z-hd, x+hw, rh, z-hd);
+                        if (viewDz > hd) drawLine3D(x-hw, rh, z+hd, x+hw, rh, z+hd);
+                        if (viewDx < -hw) drawLine3D(x-hw, rh, z-hd, x-hw, rh, z+hd);
+                        if (viewDx > hw) drawLine3D(x+hw, rh, z-hd, x+hw, rh, z+hd);
+                    }
+                } else if (ob.type === 'container') {
+                    // Horizontal ridges (corrugated metal look)
+                    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+                    ctx.lineWidth = 1;
+                    for (let rh = 0.4; rh < h; rh += 0.6) {
+                        if (viewDz < -hd) drawLine3D(x-hw, rh, z-hd, x+hw, rh, z-hd);
+                        if (viewDz > hd) drawLine3D(x-hw, rh, z+hd, x+hw, rh, z+hd);
+                        if (viewDx < -hw) drawLine3D(x-hw, rh, z-hd, x-hw, rh, z+hd);
+                        if (viewDx > hw) drawLine3D(x+hw, rh, z-hd, x+hw, rh, z+hd);
+                    }
+                    // Container label stripe
+                    const stripeY1 = h * 0.4;
+                    const stripeY2 = h * 0.6;
+                    if (viewDz < -hd) {
+                        drawQuad(x-hw*0.9, stripeY1, z-hd-0.01, x+hw*0.9, stripeY1, z-hd-0.01,
+                                 x+hw*0.9, stripeY2, z-hd-0.01, x-hw*0.9, stripeY2, z-hd-0.01, 'rgba(200,160,0,0.15)');
+                    }
+                    if (viewDz > hd) {
+                        drawQuad(x-hw*0.9, stripeY1, z+hd+0.01, x+hw*0.9, stripeY1, z+hd+0.01,
+                                 x+hw*0.9, stripeY2, z+hd+0.01, x-hw*0.9, stripeY2, z+hd+0.01, 'rgba(200,160,0,0.15)');
+                    }
+                } else if (ob.type === 'barrier') {
+                    // Hazard stripes on top
+                    ctx.strokeStyle = 'rgba(200,150,0,0.35)';
+                    ctx.lineWidth = 2;
+                    drawLine3D(x-hw*0.8, h+0.02, z, x+hw*0.8, h+0.02, z);
+                    drawLine3D(x, h+0.02, z-hd*0.8, x, h+0.02, z+hd*0.8);
+                } else if (ob.type === 'platform') {
+                    // Platform edge markings
+                    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+                    ctx.lineWidth = 2;
+                    drawLine3D(x-hw+0.2, h+0.02, z-hd+0.2, x+hw-0.2, h+0.02, z-hd+0.2);
+                    drawLine3D(x-hw+0.2, h+0.02, z+hd-0.2, x+hw-0.2, h+0.02, z+hd-0.2);
+                }
+
+                // Ambient occlusion shadow at base
+                if (ob.h > 1) {
+                    drawQuad(x-hw-0.3, 0.01, z-hd-0.3, x+hw+0.3, 0.01, z-hd-0.3,
+                             x+hw+0.3, 0.01, z+hd+0.3, x-hw-0.3, 0.01, z+hd+0.3, 'rgba(0,0,0,0.08)');
+                }
             });
 
             // --- Collect all renderables and sort by depth ---
@@ -1424,6 +1726,17 @@
                 renderables.push({ type: 'particle', data: p, depth: rz });
             });
 
+            // Damage numbers
+            damageNumbers.forEach(d => {
+                const cosY = Math.cos(-player.yaw);
+                const sinY = Math.sin(-player.yaw);
+                const dx = d.x - player.x;
+                const dz = d.z - player.z;
+                const rz = dx * sinY + dz * cosY;
+                if (rz <= 0.5) return;
+                renderables.push({ type: 'damageNumber', data: d, depth: rz });
+            });
+
             // Sort back to front
             renderables.sort((a, b) => b.depth - a.depth);
 
@@ -1431,199 +1744,414 @@
                 if (r.type === 'enemy') drawEnemy(r.data);
                 else if (r.type === 'bullet') drawBullet(r.data);
                 else if (r.type === 'particle') drawParticle(r.data);
+                else if (r.type === 'damageNumber') drawDamageNumber(r.data);
             });
+
+            // --- VIGNETTE (cinematic dark edges) ---
+            const vignetteGrad = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.9);
+            vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
+            vignetteGrad.addColorStop(0.7, 'rgba(0,0,0,0.08)');
+            vignetteGrad.addColorStop(1, 'rgba(0,0,0,0.35)');
+            ctx.fillStyle = vignetteGrad;
+            ctx.fillRect(0, 0, W, H);
+
+            // --- Ambient blue tint (subtle shadow) ---
+            ctx.fillStyle = 'rgba(20, 40, 70, 0.05)';
+            ctx.fillRect(0, 0, W, H);
+
+            // --- Warm lighting overlay ---
+            ctx.fillStyle = 'rgba(255, 240, 210, 0.02)';
+            ctx.fillRect(0, 0, W, H);
 
             // --- HUD OVERLAY ---
             drawHUD();
         }
 
-        // ============== DRAW ENEMY (humanoid) ==============
+        // ============== DRAW ENEMY (Roblox blocky character with improved detail) ==============
         function drawEnemy(e) {
-            const teamColor = e.team === 'red' ? '#ef4444' : '#3b82f6';
-            const teamDark = e.team === 'red' ? '#b91c1c' : '#1d4ed8';
-            const skinColor = '#d4a574';
+            const teamColor = e.team === 'red' ? '#ff4444' : '#4488ff';
+            const teamDark = e.team === 'red' ? '#cc2222' : '#2266cc';
+            const teamLight = e.team === 'red' ? '#ff6666' : '#66aaff';
+            const teamVDark = e.team === 'red' ? '#aa1818' : '#1a50aa';
+            const skinColor = '#e8b888';
+            const skinDark = '#c89a6e';
+            const skinLight = '#f0c8a0';
 
             const basePos = project(e.x, e.y, e.z);
             if (!basePos) return;
             const s = basePos.scale;
 
-            // Calculate body part positions
-            const headP = project(e.x, e.y + 2.6, e.z);
-            const neckP = project(e.x, e.y + 2.2, e.z);
-            const shoulderP = project(e.x, e.y + 2.0, e.z);
+            // Walk animation based on movement
+            const dx = (e.x - (e.prevX || e.x));
+            const dz = (e.z - (e.prevZ || e.z));
+            const moveSpeed = Math.hypot(dx, dz);
+            const isWalking = moveSpeed > 0.02;
+            const walkPhase = (performance.now() * 0.01 + e.x * 50) % (Math.PI * 2);
+            const legSwing = isWalking ? Math.sin(walkPhase) * 0.45 : Math.sin(performance.now() * 0.002) * 0.02;
+            const armSwing = isWalking ? Math.sin(walkPhase + Math.PI) * 0.4 : Math.sin(performance.now() * 0.002 + Math.PI) * 0.02;
+
+            // Scale factor for Roblox proportions
+            const sf = s * 0.013;
+            if (sf < 0.4) return; // too small to render
+
+            // Body dimensions (blocky Roblox style)
+            const headSize = 9 * sf;
+            const bodyW = 11 * sf;
+            const bodyH = 11 * sf;
+            const armW = 4.5 * sf;
+            const armH = 13 * sf;
+            const legW = 5 * sf;
+            const legH = 13 * sf;
+
+            // Projected positions for body parts
+            const feetP = project(e.x, e.y, e.z);
+            const hipP = project(e.x, e.y + 1.0, e.z);
             const waistP = project(e.x, e.y + 1.2, e.z);
-            const feetP = project(e.x, e.y + 0.0, e.z);
+            const chestP = project(e.x, e.y + 1.8, e.z);
+            const shoulderP = project(e.x, e.y + 2.1, e.z);
+            const neckP = project(e.x, e.y + 2.2, e.z);
+            const headP = project(e.x, e.y + 2.8, e.z);
 
-            if (!headP || !neckP || !shoulderP || !waistP || !feetP) return;
+            if (!feetP || !hipP || !waistP || !chestP || !shoulderP || !neckP || !headP) return;
 
-            // Simple walk animation based on position
-            const walkPhase = (performance.now() * 0.005 + e.x * 100) % (Math.PI * 2);
-            const legSwing = Math.sin(walkPhase) * 3 * s * 0.01;
-            const armSwing = Math.sin(walkPhase + Math.PI) * 2 * s * 0.01;
+            const cx = shoulderP.x;
 
-            const bodyWidth = 8 * s * 0.01;
-            const legWidth = 3 * s * 0.01;
-            const armWidth = 2.5 * s * 0.01;
+            // --- Shadow on ground ---
+            const shadowP = project(e.x, 0.02, e.z);
+            if (shadowP) {
+                ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                ctx.beginPath();
+                ctx.ellipse(shadowP.x, shadowP.y, bodyW * 0.8, bodyW * 0.25, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
 
-            // Enemy facing direction indicator
-            const facingDx = Math.sin(e.yaw || 0) * 3;
-            const facingDz = Math.cos(e.yaw || 0) * 3;
-
-            // --- LEGS ---
-            ctx.lineWidth = Math.max(1, legWidth * 2);
-            ctx.lineCap = 'round';
+            // --- LEGS (blocky rectangles with outlines) ---
+            const legOffX = bodyW * 0.26;
+            const leftLegSwing = legSwing * legH * 0.4;
+            const rightLegSwing = -legSwing * legH * 0.4;
 
             // Left leg
-            ctx.strokeStyle = teamDark;
-            ctx.beginPath();
-            ctx.moveTo(waistP.x - bodyWidth * 0.3, waistP.y);
-            ctx.lineTo(waistP.x - bodyWidth * 0.3 - legSwing * 8, feetP.y);
-            ctx.stroke();
+            ctx.fillStyle = teamDark;
+            ctx.fillRect(cx - legOffX - legW/2, hipP.y + leftLegSwing, legW, legH);
+            ctx.strokeStyle = teamVDark;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(cx - legOffX - legW/2, hipP.y + leftLegSwing, legW, legH);
 
             // Right leg
-            ctx.beginPath();
-            ctx.moveTo(waistP.x + bodyWidth * 0.3, waistP.y);
-            ctx.lineTo(waistP.x + bodyWidth * 0.3 + legSwing * 8, feetP.y);
-            ctx.stroke();
+            ctx.fillStyle = teamDark;
+            ctx.fillRect(cx + legOffX - legW/2, hipP.y + rightLegSwing, legW, legH);
+            ctx.strokeStyle = teamVDark;
+            ctx.strokeRect(cx + legOffX - legW/2, hipP.y + rightLegSwing, legW, legH);
 
             // Shoes
-            ctx.fillStyle = '#333';
-            const shoeSize = Math.max(2, legWidth * 1.5);
-            ctx.fillRect(waistP.x - bodyWidth * 0.3 - legSwing * 8 - shoeSize/2, feetP.y - shoeSize/2, shoeSize * 1.5, shoeSize);
-            ctx.fillRect(waistP.x + bodyWidth * 0.3 + legSwing * 8 - shoeSize/2, feetP.y - shoeSize/2, shoeSize * 1.5, shoeSize);
+            ctx.fillStyle = '#2a2a2a';
+            const shoeH = 3.5 * sf;
+            ctx.fillRect(cx - legOffX - legW/2 - 1*sf, hipP.y + leftLegSwing + legH - shoeH, legW + 2*sf, shoeH);
+            ctx.fillRect(cx + legOffX - legW/2 - 1*sf, hipP.y + rightLegSwing + legH - shoeH, legW + 2*sf, shoeH);
+            // Shoe soles
+            ctx.fillStyle = '#444';
+            ctx.fillRect(cx - legOffX - legW/2 - 1*sf, hipP.y + leftLegSwing + legH - 1*sf, legW + 2*sf, 1*sf);
+            ctx.fillRect(cx + legOffX - legW/2 - 1*sf, hipP.y + rightLegSwing + legH - 1*sf, legW + 2*sf, 1*sf);
 
-            // --- BODY (torso) ---
+            // --- BODY / TORSO (rectangle with team color) ---
+            const torsoTop = shoulderP.y;
+            const torsoBot = hipP.y;
             ctx.fillStyle = teamColor;
-            const torsoW = bodyWidth * 1.2;
-            const torsoH = shoulderP.y - waistP.y; // negative because y is flipped
-            ctx.beginPath();
-            ctx.moveTo(shoulderP.x - torsoW/2, shoulderP.y);
-            ctx.lineTo(shoulderP.x + torsoW/2, shoulderP.y);
-            ctx.lineTo(waistP.x + torsoW * 0.4, waistP.y);
-            ctx.lineTo(waistP.x - torsoW * 0.4, waistP.y);
-            ctx.closePath();
-            ctx.fill();
+            ctx.fillRect(cx - bodyW/2, torsoTop, bodyW, torsoBot - torsoTop);
+            // Torso outline
+            ctx.strokeStyle = teamVDark;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(cx - bodyW/2, torsoTop, bodyW, torsoBot - torsoTop);
 
-            // --- ARMS ---
-            ctx.lineWidth = Math.max(1, armWidth * 2);
-            ctx.strokeStyle = teamColor;
+            // Team emblem (small circle on chest)
+            ctx.fillStyle = teamLight;
+            ctx.globalAlpha = 0.7;
+            ctx.beginPath();
+            ctx.arc(cx, (torsoTop + torsoBot) / 2 - bodyH * 0.05, bodyW * 0.16, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+
+            // Belt
+            ctx.fillStyle = '#333';
+            ctx.fillRect(cx - bodyW/2, torsoBot - 2.5*sf, bodyW, 2.5*sf);
+            // Belt buckle
+            ctx.fillStyle = '#888';
+            ctx.fillRect(cx - 1.5*sf, torsoBot - 2.2*sf, 3*sf, 2*sf);
+
+            // --- ARMS (blocky rectangles with team color) ---
+            const armOffX = bodyW/2 + armW/2 + 0.5*sf;
+            const leftArmSwing = armSwing * armH * 0.35;
+            const rightArmSwing = -armSwing * armH * 0.35;
 
             // Left arm
-            ctx.beginPath();
-            ctx.moveTo(shoulderP.x - torsoW/2, shoulderP.y);
-            ctx.lineTo(shoulderP.x - torsoW/2 - armWidth * 2 + armSwing * 8, waistP.y + (waistP.y - shoulderP.y) * 0.3);
-            ctx.stroke();
-
-            // Right arm (holding weapon forward)
-            ctx.beginPath();
-            ctx.moveTo(shoulderP.x + torsoW/2, shoulderP.y);
-            ctx.lineTo(shoulderP.x + torsoW/2 + armWidth * 2 - armSwing * 8, waistP.y + (waistP.y - shoulderP.y) * 0.3);
-            ctx.stroke();
-
-            // Hands
-            ctx.fillStyle = skinColor;
-            const handSize = Math.max(2, armWidth * 1.2);
-            ctx.beginPath();
-            ctx.arc(shoulderP.x - torsoW/2 - armWidth * 2 + armSwing * 8, waistP.y + (waistP.y - shoulderP.y) * 0.3, handSize, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(shoulderP.x + torsoW/2 + armWidth * 2 - armSwing * 8, waistP.y + (waistP.y - shoulderP.y) * 0.3, handSize, 0, Math.PI * 2);
-            ctx.fill();
-
-            // --- HEAD ---
-            const headSize = Math.max(4, 6 * s * 0.01);
-            ctx.fillStyle = skinColor;
-            ctx.beginPath();
-            ctx.arc(headP.x, headP.y, headSize, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Eyes (tiny dots)
-            ctx.fillStyle = '#333';
-            const eyeOff = headSize * 0.3;
-            ctx.fillRect(headP.x - eyeOff - 1, headP.y - headSize * 0.1, 2, 2);
-            ctx.fillRect(headP.x + eyeOff - 1, headP.y - headSize * 0.1, 2, 2);
-
-            // --- NAME TAG ---
             ctx.fillStyle = teamColor;
-            ctx.font = `bold ${Math.max(10, 14 * s * 0.01)}px 'Segoe UI', sans-serif`;
+            ctx.fillRect(cx - armOffX - armW/2, shoulderP.y + leftArmSwing, armW, armH);
+            ctx.strokeStyle = teamVDark;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(cx - armOffX - armW/2, shoulderP.y + leftArmSwing, armW, armH);
+
+            // Right arm
+            ctx.fillStyle = teamColor;
+            ctx.fillRect(cx + armOffX - armW/2, shoulderP.y + rightArmSwing, armW, armH);
+            ctx.strokeStyle = teamVDark;
+            ctx.strokeRect(cx + armOffX - armW/2, shoulderP.y + rightArmSwing, armW, armH);
+
+            // Sleeve cuffs
+            ctx.fillStyle = teamLight;
+            ctx.fillRect(cx - armOffX - armW/2, shoulderP.y + leftArmSwing, armW, 2*sf);
+            ctx.fillRect(cx + armOffX - armW/2, shoulderP.y + rightArmSwing, armW, 2*sf);
+
+            // Hands (skin colored squares at arm ends)
+            ctx.fillStyle = skinColor;
+            const handSize = armW * 1.0;
+            ctx.fillRect(cx - armOffX - handSize/2, shoulderP.y + leftArmSwing + armH - handSize, handSize, handSize);
+            ctx.fillRect(cx + armOffX - handSize/2, shoulderP.y + rightArmSwing + armH - handSize, handSize, handSize);
+            ctx.strokeStyle = skinDark;
+            ctx.lineWidth = 0.8;
+            ctx.strokeRect(cx - armOffX - handSize/2, shoulderP.y + leftArmSwing + armH - handSize, handSize, handSize);
+            ctx.strokeRect(cx + armOffX - handSize/2, shoulderP.y + rightArmSwing + armH - handSize, handSize, handSize);
+
+            // --- WEAPON in right hand ---
+            const weaponHandX = cx + armOffX;
+            const weaponHandY = shoulderP.y + rightArmSwing + armH - handSize/2;
+            // Gun body
+            ctx.fillStyle = '#444';
+            ctx.fillRect(weaponHandX - 1.2*sf, weaponHandY - 7*sf, 2.4*sf, 9*sf);
+            // Gun barrel
+            ctx.fillStyle = '#666';
+            ctx.fillRect(weaponHandX - 0.8*sf, weaponHandY - 12*sf, 1.6*sf, 6*sf);
+            // Barrel tip
+            ctx.fillStyle = '#888';
+            ctx.fillRect(weaponHandX - 0.6*sf, weaponHandY - 13*sf, 1.2*sf, 1.5*sf);
+
+            // --- HEAD (square/blocky with rounded feel) ---
+            const headW = headSize * 1.15;
+            const headH = headSize * 1.15;
+            const headX = headP.x - headW/2;
+            const headY = headP.y - headH/2;
+
+            // Head shadow (neck area)
+            ctx.fillStyle = skinDark;
+            ctx.fillRect(headP.x - headW * 0.3, headY + headH, headW * 0.6, 2*sf);
+
+            // Main head
+            ctx.fillStyle = skinColor;
+            ctx.fillRect(headX, headY, headW, headH);
+            // Head outline
+            ctx.strokeStyle = skinDark;
+            ctx.lineWidth = 1.2;
+            ctx.strokeRect(headX, headY, headW, headH);
+
+            // Head highlight (top)
+            ctx.fillStyle = skinLight;
+            ctx.globalAlpha = 0.3;
+            ctx.fillRect(headX + 1, headY + 1, headW - 2, headH * 0.3);
+            ctx.globalAlpha = 1;
+
+            // Face details - Roblox style
+            // Eyes (dark with white highlights)
+            ctx.fillStyle = '#1a1a1a';
+            const eyeW = headW * 0.19;
+            const eyeH = headH * 0.16;
+            const eyeY = headP.y - headH * 0.06;
+            const leftEyeX = headP.x - headW * 0.23 - eyeW/2;
+            const rightEyeX = headP.x + headW * 0.23 - eyeW/2;
+            ctx.fillRect(leftEyeX, eyeY, eyeW, eyeH);
+            ctx.fillRect(rightEyeX, eyeY, eyeW, eyeH);
+
+            // Eye whites/highlights
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(leftEyeX + eyeW * 0.55, eyeY + eyeH * 0.15, eyeW * 0.3, eyeH * 0.4);
+            ctx.fillRect(rightEyeX + eyeW * 0.55, eyeY + eyeH * 0.15, eyeW * 0.3, eyeH * 0.4);
+
+            // Eyebrows (angled for aggressive look)
+            ctx.fillStyle = '#3a3a3a';
+            ctx.save();
+            ctx.translate(headP.x - headW * 0.23, eyeY - eyeH * 0.5);
+            ctx.rotate(-0.1);
+            ctx.fillRect(-eyeW/2 - 1, 0, eyeW + 2, eyeH * 0.35);
+            ctx.restore();
+            ctx.save();
+            ctx.translate(headP.x + headW * 0.23, eyeY - eyeH * 0.5);
+            ctx.rotate(0.1);
+            ctx.fillRect(-eyeW/2 - 1, 0, eyeW + 2, eyeH * 0.35);
+            ctx.restore();
+
+            // Mouth (slight smirk)
+            ctx.fillStyle = '#8B6050';
+            ctx.fillRect(headP.x - headW * 0.14, headP.y + headH * 0.22, headW * 0.28, headH * 0.06);
+            // Mouth highlight
+            ctx.fillStyle = '#9B7060';
+            ctx.fillRect(headP.x - headW * 0.12, headP.y + headH * 0.21, headW * 0.24, headH * 0.03);
+
+            // Hair (simple blocky hair on top)
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fillRect(headX - 0.5*sf, headY - 2*sf, headW + 1*sf, 3.5*sf);
+            ctx.fillRect(headX - 0.5*sf, headY - 2*sf, 3*sf, headH * 0.3);
+
+            // --- NAME TAG (white text with shadow, Roblox style) ---
+            const nameSize = Math.max(11, 17 * sf);
+            ctx.font = `bold ${nameSize}px 'Segoe UI', sans-serif`;
             ctx.textAlign = 'center';
-            const nameY = headP.y - headSize - 8;
+            const nameY = headY - headH * 0.4 - 12;
+
+            // Name background pill
+            const nameWidth = ctx.measureText(e.username).width;
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            roundRect(ctx, headP.x - nameWidth/2 - 8, nameY - nameSize + 2, nameWidth + 16, nameSize + 4, 4);
+            ctx.fill();
+
+            // Shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillText(e.username, headP.x + 1, nameY + 1);
+            // White text
+            ctx.fillStyle = '#ffffff';
             ctx.fillText(e.username, headP.x, nameY);
 
-            // --- HEALTH BAR ---
-            if (e.health < 100) {
-                const barW = Math.max(20, 40 * s * 0.01);
-                const barH = 4;
-                const barY = nameY - 10;
-                ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                ctx.fillRect(headP.x - barW/2 - 1, barY - 1, barW + 2, barH + 2);
-                const hpPct = Math.max(0, e.health / 100);
-                const hpColor = hpPct > 0.5 ? '#22c55e' : hpPct > 0.25 ? '#f59e0b' : '#ef4444';
-                ctx.fillStyle = hpColor;
-                ctx.fillRect(headP.x - barW/2, barY, barW * hpPct, barH);
+            // --- HEALTH BAR (above name, Roblox Rivals style) ---
+            const barW = Math.max(35, 55 * sf);
+            const barH = Math.max(5, 6 * sf);
+            const barY = nameY - barH - nameSize - 2;
+
+            // Background
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            roundRect(ctx, headP.x - barW/2 - 2, barY - 2, barW + 4, barH + 4, 3);
+            ctx.fill();
+
+            // Health track
+            ctx.fillStyle = '#2a2a2a';
+            roundRect(ctx, headP.x - barW/2, barY, barW, barH, 2);
+            ctx.fill();
+
+            // Health fill
+            const hpPct = Math.max(0, e.health / 100);
+            if (hpPct > 0) {
+                const hpGrad = ctx.createLinearGradient(headP.x - barW/2, 0, headP.x - barW/2 + barW * hpPct, 0);
+                if (hpPct > 0.5) {
+                    hpGrad.addColorStop(0, '#22c55e');
+                    hpGrad.addColorStop(1, '#4ade80');
+                } else if (hpPct > 0.25) {
+                    hpGrad.addColorStop(0, '#f59e0b');
+                    hpGrad.addColorStop(1, '#fbbf24');
+                } else {
+                    hpGrad.addColorStop(0, '#ef4444');
+                    hpGrad.addColorStop(1, '#f87171');
+                }
+                ctx.fillStyle = hpGrad;
+                roundRect(ctx, headP.x - barW/2, barY, barW * hpPct, barH, 2);
+                ctx.fill();
             }
+
+            // Health bar shine
+            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            roundRect(ctx, headP.x - barW/2 + 1, barY + 1, barW - 2, barH * 0.4, 1);
+            ctx.fill();
         }
 
-        // ============== DRAW BULLET (glowing trail) ==============
+        // ============== DRAW BULLET (tracer line + bright tip) ==============
         function drawBullet(b) {
             const pos = project(b.x, b.y, b.z);
             if (!pos) return;
 
-            const bulletSize = Math.max(2, 4 * pos.scale * 0.01);
+            const bulletSize = Math.max(2, 3.5 * pos.scale * 0.01);
 
-            // Draw trail
+            // Draw tracer trail
             if (b.trail && b.trail.length > 1) {
                 for (let i = 1; i < b.trail.length; i++) {
                     const tp1 = project(b.trail[i-1].x, b.trail[i-1].y, b.trail[i-1].z);
                     const tp2 = project(b.trail[i].x, b.trail[i].y, b.trail[i].z);
                     if (tp1 && tp2) {
                         const alpha = i / b.trail.length;
-                        ctx.strokeStyle = b.color || '#fff';
-                        ctx.globalAlpha = alpha * 0.5;
-                        ctx.lineWidth = Math.max(1, bulletSize * alpha);
+                        ctx.strokeStyle = `rgba(255, 240, 180, ${alpha * 0.8})`;
+                        ctx.lineWidth = Math.max(1, bulletSize * alpha * 0.7);
                         ctx.beginPath();
                         ctx.moveTo(tp1.x, tp1.y);
                         ctx.lineTo(tp2.x, tp2.y);
                         ctx.stroke();
                     }
                 }
-                ctx.globalAlpha = 1;
             }
 
-            // Bullet glow
-            const glowSize = bulletSize * 3;
-            const grad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, glowSize);
-            grad.addColorStop(0, b.color || '#fff');
-            grad.addColorStop(0.4, (b.color || '#fff') + '88');
-            grad.addColorStop(1, 'transparent');
-            ctx.fillStyle = grad;
+            // Outer glow
+            ctx.fillStyle = b.color || '#ffffaa';
+            ctx.globalAlpha = 0.3;
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, glowSize, 0, Math.PI * 2);
+            ctx.arc(pos.x, pos.y, bulletSize * 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+
+            // Bright bullet core
+            ctx.fillStyle = '#fffde0';
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, bulletSize * 0.7, 0, Math.PI * 2);
             ctx.fill();
 
-            // Bright center
+            // Center white
             ctx.fillStyle = '#fff';
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, bulletSize * 0.5, 0, Math.PI * 2);
+            ctx.arc(pos.x, pos.y, bulletSize * 0.35, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        // ============== DRAW PARTICLE ==============
+        // ============== DRAW PARTICLE (Roblox square particles with rotation) ==============
         function drawParticle(p) {
             const pos = project(p.x, p.y, p.z);
             if (!pos) return;
 
             const alpha = p.life / p.maxLife;
-            const size = Math.max(1, p.size * pos.scale * 0.008);
+            const size = Math.max(1.5, p.size * pos.scale * 0.009);
             ctx.globalAlpha = alpha;
             ctx.fillStyle = p.color;
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
-            ctx.fill();
+
+            if (p.isSquare) {
+                ctx.save();
+                ctx.translate(pos.x, pos.y);
+                if (p.rotation !== undefined) ctx.rotate(p.rotation);
+                ctx.fillRect(-size/2, -size/2, size, size);
+                // Slight highlight on particles
+                ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                ctx.fillRect(-size/2, -size/2, size, size * 0.3);
+                ctx.restore();
+            } else {
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
             ctx.globalAlpha = 1;
         }
 
-        // ============== DRAW FIRST-PERSON WEAPON ==============
+        // ============== DRAW DAMAGE NUMBER ==============
+        function drawDamageNumber(d) {
+            const pos = project(d.x, d.y, d.z);
+            if (!pos) return;
+
+            const alpha = d.life / d.maxLife;
+            const size = Math.max(14, 22 * pos.scale * 0.01);
+            const scale = 1 + (1 - alpha) * 0.3; // Scale up as it fades
+
+            ctx.globalAlpha = alpha;
+            ctx.font = `bold ${size * scale}px 'Segoe UI', sans-serif`;
+            ctx.textAlign = 'center';
+
+            // Outline/shadow
+            ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+            ctx.lineWidth = 3;
+            ctx.strokeText(d.damage, pos.x, pos.y);
+
+            // White number with slight yellow tint for high damage
+            const dmg = d.damage;
+            if (dmg >= 50) {
+                ctx.fillStyle = '#ffdd44';
+            } else if (dmg >= 25) {
+                ctx.fillStyle = '#ffffff';
+            } else {
+                ctx.fillStyle = '#dddddd';
+            }
+            ctx.fillText(d.damage, pos.x, pos.y);
+            ctx.globalAlpha = 1;
+        }
+
+        // ============== DRAW FIRST-PERSON WEAPON (Roblox blocky style, enhanced) ==============
         function drawWeaponView() {
             const W = canvas.width;
             const H = canvas.height;
@@ -1631,99 +2159,436 @@
             if (!w) return;
 
             const weaponColor = w.color || '#888';
-            const bobX = Math.sin(performance.now() * 0.003) * 3;
-            const bobY = Math.abs(Math.cos(performance.now() * 0.003)) * 2;
+            const time = performance.now();
 
-            // Weapon sway when moving
-            const isMoving = keys['w'] || keys['s'] || keys['a'] || keys['d'];
-            const swayMult = isMoving ? 2 : 0.5;
+            // Recoil kick
+            let recoilOffset = 0;
+            let recoilRotation = 0;
+            if (weaponRecoilTimer > 0) {
+                const recoilPct = weaponRecoilTimer / 150;
+                recoilOffset = recoilPct * 14;
+                recoilRotation = recoilPct * 0.04;
+            }
 
-            const baseX = W * 0.65 + bobX * swayMult;
-            const baseY = H * 0.75 + bobY * swayMult;
+            // Base position (bottom-right)
+            const baseX = W * 0.67 + weaponSwayX;
+            const baseY = H * 0.7 + weaponSwayY + recoilOffset;
 
             // Switch animation
             let switchOffset = 0;
             if (isSwitching) {
-                switchOffset = 100;
+                switchOffset = 140;
             }
 
-            // Reload animation
+            // Reload animation (dip down smoothly)
             let reloadOffset = 0;
+            let reloadRotate = 0;
             if (isReloading) {
                 const w2 = getActiveWeapon();
                 if (w2 && w2.reloadTime > 0) {
                     const progress = 1 - reloadTimer / w2.reloadTime;
-                    reloadOffset = Math.sin(progress * Math.PI) * 40;
+                    reloadOffset = Math.sin(progress * Math.PI) * 70;
+                    reloadRotate = Math.sin(progress * Math.PI) * 0.15;
                 }
             }
 
+            const finalX = baseX;
             const finalY = baseY + switchOffset + reloadOffset;
 
+            ctx.save();
+
             if (w.type === 'melee') {
-                // Draw melee weapon
-                ctx.save();
-                ctx.translate(baseX + 30, finalY);
+                // --- MELEE WEAPON ---
+                ctx.translate(finalX + 50, finalY);
+                const swingAngle = Math.sin(time * 0.003) * 0.08;
+                ctx.rotate(swingAngle - 0.3 + reloadRotate);
 
-                // Handle
-                ctx.fillStyle = '#5a3a1a';
-                ctx.fillRect(-3, -40, 6, 60);
-
-                // Blade/head
-                ctx.fillStyle = weaponColor;
                 if (w.name === 'Fists') {
-                    // Fist
+                    // Blocky fist with better shading
+                    ctx.fillStyle = '#e8b888';
+                    ctx.fillRect(-18, -35, 36, 40);
+                    ctx.strokeStyle = '#c89a6e';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(-18, -35, 36, 40);
+                    // Knuckles
                     ctx.fillStyle = '#d4a574';
-                    ctx.beginPath();
-                    ctx.arc(0, -10, 18, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.fillStyle = '#c4956a';
-                    for (let i = 0; i < 4; i++) {
-                        ctx.fillRect(-12 + i * 7, -25, 5, 12);
+                    ctx.fillRect(-16, -35, 32, 10);
+                    // Finger lines
+                    ctx.strokeStyle = '#c0906a';
+                    ctx.lineWidth = 1;
+                    for (let fi = 0; fi < 4; fi++) {
+                        const fx = -14 + fi * 9;
+                        ctx.beginPath(); ctx.moveTo(fx, -35); ctx.lineTo(fx, -25); ctx.stroke();
                     }
-                } else {
-                    // Generic blade
+                    // Wrist
+                    ctx.fillStyle = '#c89a6e';
+                    ctx.fillRect(-12, 5, 24, 25);
+                    ctx.strokeStyle = '#b08060';
+                    ctx.strokeRect(-12, 5, 24, 25);
+                } else if (w.name === 'Knife' || w.name === 'Daggers') {
+                    // Blocky knife blade with shine
+                    ctx.fillStyle = '#c0c0c0';
                     ctx.beginPath();
-                    ctx.moveTo(-12, -40);
-                    ctx.lineTo(12, -40);
-                    ctx.lineTo(8, -70);
-                    ctx.lineTo(-8, -70);
+                    ctx.moveTo(-5, -75);
+                    ctx.lineTo(5, -75);
+                    ctx.lineTo(7, -20);
+                    ctx.lineTo(-7, -20);
                     ctx.closePath();
                     ctx.fill();
+                    ctx.strokeStyle = '#888';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    // Blade edge highlight
+                    ctx.fillStyle = '#e8e8e8';
+                    ctx.fillRect(-2, -73, 2, 52);
+                    // Handle
+                    ctx.fillStyle = '#5a3a1a';
+                    ctx.fillRect(-6, -20, 12, 35);
+                    ctx.strokeStyle = '#3a2010';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(-6, -20, 12, 35);
+                    // Guard
+                    ctx.fillStyle = '#999';
+                    ctx.fillRect(-10, -22, 20, 5);
+                    ctx.fillStyle = '#aaa';
+                    ctx.fillRect(-10, -22, 20, 2);
+                    // Grip wrapping
+                    ctx.strokeStyle = '#4a2a10';
+                    for (let gi = 0; gi < 5; gi++) {
+                        ctx.beginPath();
+                        ctx.moveTo(-6, -14 + gi * 6);
+                        ctx.lineTo(6, -17 + gi * 6);
+                        ctx.stroke();
+                    }
+                } else if (w.name === 'Katana' || w.name === 'Scythe') {
+                    // Long blade with shine
+                    ctx.fillStyle = '#d0d0d0';
+                    ctx.beginPath();
+                    ctx.moveTo(-3, -100);
+                    ctx.lineTo(6, -95);
+                    ctx.lineTo(7, -20);
+                    ctx.lineTo(-6, -20);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = '#999';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    // Blade shine
+                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                    ctx.fillRect(-1, -98, 3, 75);
+                    // Handle
+                    ctx.fillStyle = '#6B3513';
+                    ctx.fillRect(-7, -20, 14, 40);
+                    ctx.strokeStyle = '#4a2008';
+                    ctx.strokeRect(-7, -20, 14, 40);
+                    // Tsuba (guard)
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.fillRect(-10, -22, 20, 5);
+                    ctx.fillStyle = '#e5a91e';
+                    ctx.fillRect(-10, -22, 20, 2);
+                    // Handle wrapping
+                    ctx.strokeStyle = '#444';
+                    ctx.lineWidth = 1.5;
+                    for (let gi = 0; gi < 6; gi++) {
+                        ctx.beginPath();
+                        ctx.moveTo(-7, -14 + gi * 6);
+                        ctx.lineTo(7, -17 + gi * 6);
+                        ctx.stroke();
+                    }
+                } else if (w.name === 'Battle Axe') {
+                    // Axe handle
+                    ctx.fillStyle = '#5a3a1a';
+                    ctx.fillRect(-4, -60, 8, 85);
+                    ctx.strokeStyle = '#3a2010';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(-4, -60, 8, 85);
+                    // Axe head
+                    ctx.fillStyle = '#888';
+                    ctx.beginPath();
+                    ctx.moveTo(0, -65);
+                    ctx.lineTo(20, -50);
+                    ctx.lineTo(20, -35);
+                    ctx.lineTo(0, -30);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = '#666';
+                    ctx.stroke();
+                    // Edge highlight
+                    ctx.fillStyle = '#aaa';
+                    ctx.beginPath();
+                    ctx.moveTo(18, -49);
+                    ctx.lineTo(20, -50);
+                    ctx.lineTo(20, -35);
+                    ctx.lineTo(18, -36);
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    // Generic melee
+                    ctx.fillStyle = '#5a3a1a';
+                    ctx.fillRect(-4, -55, 8, 75);
+                    ctx.strokeStyle = '#3a2010';
+                    ctx.strokeRect(-4, -55, 8, 75);
+                    ctx.fillStyle = weaponColor;
+                    ctx.fillRect(-16, -60, 32, 22);
+                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                    ctx.strokeRect(-16, -60, 32, 22);
+                    ctx.fillStyle = '#999';
+                    ctx.fillRect(-14, -58, 28, 18);
+                }
+                ctx.restore();
+            } else if (w.type === 'utility') {
+                // --- UTILITY ITEMS ---
+                ctx.translate(finalX + 25, finalY);
+                ctx.rotate(reloadRotate);
+
+                if (w.name === 'Grenade' || w.name === 'Flashbang' || w.name === 'Molotov') {
+                    // Hand holding grenade
+                    ctx.fillStyle = '#e8b888';
+                    ctx.fillRect(-14, -5, 28, 34);
+                    ctx.strokeStyle = '#c89a6e';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(-14, -5, 28, 34);
+                    // Finger wrapping
+                    ctx.fillStyle = '#d4a574';
+                    for (let fi = 0; fi < 3; fi++) {
+                        ctx.fillRect(-12, 0 + fi * 9, 24, 5);
+                    }
+                    // Grenade body (blocky)
+                    ctx.fillStyle = weaponColor;
+                    ctx.fillRect(-12, -28, 24, 26);
+                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(-12, -28, 24, 26);
+                    // Grid pattern on grenade
+                    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+                    ctx.lineWidth = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(-12, -15); ctx.lineTo(12, -15);
+                    ctx.moveTo(0, -28); ctx.lineTo(0, -2);
+                    ctx.stroke();
+                    // Top nub/spoon
+                    ctx.fillStyle = '#666';
+                    ctx.fillRect(-5, -34, 10, 7);
+                    // Pin
+                    ctx.strokeStyle = '#bbb';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(8, -32, 5, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else if (w.name === 'Medkit') {
+                    // Medkit box
+                    ctx.fillStyle = '#f5f5f5';
+                    ctx.fillRect(-22, -28, 44, 36);
+                    ctx.strokeStyle = '#ccc';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(-22, -28, 44, 36);
+                    // Red cross
+                    ctx.fillStyle = weaponColor;
+                    ctx.fillRect(-4, -24, 8, 28);
+                    ctx.fillRect(-14, -14, 28, 8);
+                    // Handle
+                    ctx.fillStyle = '#999';
+                    ctx.fillRect(-12, -34, 24, 7);
+                    ctx.strokeStyle = '#777';
+                    ctx.strokeRect(-12, -34, 24, 7);
+                    // Clasp
+                    ctx.fillStyle = '#888';
+                    ctx.fillRect(-3, -28, 6, 3);
+                } else {
+                    // Generic utility
+                    ctx.fillStyle = '#e8b888';
+                    ctx.fillRect(-12, 0, 24, 28);
+                    ctx.fillStyle = weaponColor;
+                    ctx.fillRect(-14, -24, 28, 26);
+                    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                    ctx.strokeRect(-14, -24, 28, 26);
                 }
                 ctx.restore();
             } else {
-                // Draw gun
-                ctx.save();
-                ctx.translate(baseX, finalY);
+                // --- GUNS (primary/secondary) ---
+                ctx.translate(finalX, finalY);
+                ctx.rotate(recoilRotation + reloadRotate);
 
-                // Gun body
-                ctx.fillStyle = '#333';
-                ctx.fillRect(-10, -8, 80, 16);
+                // Determine gun proportions by type
+                let barrelLen = 60, barrelW = 8, stockLen = 32, bodyW = 16, bodyH = 20;
+                let hasScope = false, hasMag = true;
+
+                if (w.name === 'Shotgun' || w.name === 'Shorty') {
+                    barrelLen = 45; barrelW = 14;
+                } else if (w.name === 'Sniper') {
+                    barrelLen = 80; barrelW = 7; hasScope = true; stockLen = 38;
+                } else if (w.name === 'SMG' || w.name === 'Uzi') {
+                    barrelLen = 35; barrelW = 7; bodyH = 16;
+                } else if (w.name === 'Handgun' || w.name === 'Revolver' || w.name === 'Exogun' || w.name === 'Slingshot' || w.name === 'Flare Gun') {
+                    barrelLen = 28; barrelW = 8; bodyW = 14; bodyH = 16; stockLen = 0;
+                } else if (w.name === 'RPG' || w.name === 'Grenade Launcher') {
+                    barrelLen = 55; barrelW = 18; bodyH = 24;
+                } else if (w.name === 'Minigun') {
+                    barrelLen = 65; barrelW = 20;
+                } else if (w.name === 'Flamethrower' || w.name === 'Freeze Ray') {
+                    barrelLen = 48; barrelW = 16;
+                }
+
+                // Gun body shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                ctx.fillRect(-bodyW/2 + 3, -bodyH/2 + 3, bodyW + barrelLen, bodyH);
+
+                // Gun body (main receiver)
+                ctx.fillStyle = '#383838';
+                ctx.fillRect(-bodyW/2, -bodyH/2, bodyW + barrelLen, bodyH);
+                ctx.strokeStyle = '#222';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(-bodyW/2, -bodyH/2, bodyW + barrelLen, bodyH);
+
+                // Body top highlight
+                ctx.fillStyle = '#444';
+                ctx.fillRect(-bodyW/2 + 1, -bodyH/2 + 1, bodyW + barrelLen - 2, 3);
 
                 // Barrel
-                ctx.fillStyle = '#555';
-                ctx.fillRect(70, -5, 40, 10);
+                ctx.fillStyle = '#505050';
+                ctx.fillRect(bodyW/2 + barrelLen - 18, -barrelW/2, 24, barrelW);
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 0.8;
+                ctx.strokeRect(bodyW/2 + barrelLen - 18, -barrelW/2, 24, barrelW);
 
-                // Color accent
+                // Barrel tip (muzzle)
+                ctx.fillStyle = '#5a5a5a';
+                ctx.fillRect(bodyW/2 + barrelLen + 3, -barrelW/2 + 1, 8, barrelW - 2);
+                ctx.strokeStyle = '#444';
+                ctx.strokeRect(bodyW/2 + barrelLen + 3, -barrelW/2 + 1, 8, barrelW - 2);
+                // Muzzle brake slots
+                ctx.fillStyle = '#333';
+                ctx.fillRect(bodyW/2 + barrelLen + 5, -barrelW/2 + 2, 2, barrelW - 4);
+                ctx.fillRect(bodyW/2 + barrelLen + 8, -barrelW/2 + 2, 2, barrelW - 4);
+
+                // Color accent stripe
                 ctx.fillStyle = weaponColor;
-                ctx.fillRect(10, -10, 50, 4);
+                ctx.fillRect(4, -bodyH/2 - 4, barrelLen * 0.6, 5);
+                // Accent stripe glow
+                ctx.fillStyle = weaponColor;
+                ctx.globalAlpha = 0.2;
+                ctx.fillRect(4, -bodyH/2 - 6, barrelLen * 0.6, 9);
+                ctx.globalAlpha = 1;
+
+                // Stock (for rifles)
+                if (stockLen > 0) {
+                    ctx.fillStyle = '#2e2e2e';
+                    ctx.fillRect(-bodyW/2 - stockLen, -bodyH/2 + 2, stockLen, bodyH - 4);
+                    ctx.strokeStyle = '#222';
+                    ctx.lineWidth = 0.8;
+                    ctx.strokeRect(-bodyW/2 - stockLen, -bodyH/2 + 2, stockLen, bodyH - 4);
+                    // Stock top highlight
+                    ctx.fillStyle = '#3a3a3a';
+                    ctx.fillRect(-bodyW/2 - stockLen + 1, -bodyH/2 + 2, stockLen - 2, 3);
+                    // Stock pad
+                    ctx.fillStyle = '#252525';
+                    ctx.fillRect(-bodyW/2 - stockLen, -bodyH/2 + 4, 4, bodyH - 8);
+                }
 
                 // Grip
-                ctx.fillStyle = '#2a2a2a';
-                ctx.fillRect(15, 8, 14, 30);
+                ctx.fillStyle = '#2e2e2e';
+                ctx.fillRect(6, bodyH/2, 14, 32);
+                ctx.strokeStyle = '#1a1a1a';
+                ctx.lineWidth = 0.8;
+                ctx.strokeRect(6, bodyH/2, 14, 32);
+                // Grip texture
+                ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+                for (let gi = 0; gi < 5; gi++) {
+                    ctx.beginPath();
+                    ctx.moveTo(7, bodyH/2 + 5 + gi * 5);
+                    ctx.lineTo(19, bodyH/2 + 5 + gi * 5);
+                    ctx.stroke();
+                }
+                // Trigger
+                ctx.fillStyle = '#444';
+                ctx.fillRect(14, bodyH/2 + 3, 3, 12);
+                // Trigger guard
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(14, bodyH/2 + 14, 7, -0.3, Math.PI + 0.3);
+                ctx.stroke();
 
                 // Magazine
-                ctx.fillStyle = '#444';
-                ctx.fillRect(35, 8, 10, 20);
+                if (hasMag) {
+                    ctx.fillStyle = '#3a3a3a';
+                    ctx.fillRect(24, bodyH/2 - 1, 10, 26);
+                    ctx.strokeStyle = '#2a2a2a';
+                    ctx.lineWidth = 0.8;
+                    ctx.strokeRect(24, bodyH/2 - 1, 10, 26);
+                    // Magazine bottom
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(23, bodyH/2 + 22, 12, 3);
+                }
 
                 // Scope for sniper
-                if (w.name === 'Sniper') {
-                    ctx.fillStyle = '#222';
-                    ctx.fillRect(30, -18, 30, 8);
+                if (hasScope) {
+                    ctx.fillStyle = '#2a2a2a';
+                    ctx.fillRect(18, -bodyH/2 - 14, 40, 12);
+                    ctx.strokeStyle = '#1a1a1a';
+                    ctx.strokeRect(18, -bodyH/2 - 14, 40, 12);
+                    // Lens
                     ctx.fillStyle = '#0af';
+                    ctx.globalAlpha = 0.7;
                     ctx.beginPath();
-                    ctx.arc(45, -14, 3, 0, Math.PI * 2);
+                    ctx.arc(58, -bodyH/2 - 8, 4, 0, Math.PI * 2);
                     ctx.fill();
+                    ctx.globalAlpha = 1;
+                    // Lens reflection
+                    ctx.fillStyle = '#fff';
+                    ctx.globalAlpha = 0.4;
+                    ctx.beginPath();
+                    ctx.arc(57, -bodyH/2 - 9, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                    // Scope mounts
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(20, -bodyH/2 - 16, 5, 16);
+                    ctx.fillRect(52, -bodyH/2 - 16, 5, 16);
+                }
+
+                // Shotgun pump
+                if (w.name === 'Shotgun' || w.name === 'Shorty') {
+                    ctx.fillStyle = '#5a3a1a';
+                    ctx.fillRect(32, bodyH/2 - 5, 24, 8);
+                    ctx.strokeStyle = '#3a2010';
+                    ctx.lineWidth = 0.8;
+                    ctx.strokeRect(32, bodyH/2 - 5, 24, 8);
+                }
+
+                // RPG/GL back opening
+                if (w.name === 'RPG' || w.name === 'Grenade Launcher') {
+                    ctx.fillStyle = '#2a2a2a';
+                    ctx.beginPath();
+                    ctx.arc(bodyW/2 + barrelLen + 8, 0, barrelW/2 - 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Minigun barrels
+                if (w.name === 'Minigun') {
+                    const spin = (time * 0.01) % (Math.PI * 2);
+                    for (let bi = 0; bi < 4; bi++) {
+                        const ba = spin + (bi / 4) * Math.PI * 2;
+                        const bx = bodyW/2 + barrelLen + 5;
+                        const by = Math.sin(ba) * 6;
+                        ctx.fillStyle = '#555';
+                        ctx.fillRect(bx - 3, by - 2, 12, 4);
+                    }
+                }
+
+                // Hand holding the gun
+                ctx.fillStyle = '#e8b888';
+                ctx.fillRect(4, bodyH/2 + 2, 12, 12);
+                ctx.strokeStyle = '#c89a6e';
+                ctx.lineWidth = 0.8;
+                ctx.strokeRect(4, bodyH/2 + 2, 12, 12);
+
+                // Forward hand
+                if (stockLen > 0) {
+                    ctx.fillStyle = '#e8b888';
+                    ctx.fillRect(35, bodyH/2 - 3, 12, 10);
+                    ctx.strokeStyle = '#c89a6e';
+                    ctx.strokeRect(35, bodyH/2 - 3, 12, 10);
                 }
 
                 ctx.restore();
@@ -1732,27 +2597,49 @@
             // Muzzle flash
             if (muzzleFlashTimer > 0 && w.type !== 'melee') {
                 const flashAlpha = muzzleFlashTimer / 80;
-                const flashX = baseX + 110;
-                const flashY = finalY;
-                const flashSize = 20 + Math.random() * 15;
+                const flashX = finalX + (w.type === 'utility' ? 35 : 90);
+                const flashY = finalY - 3;
+                const flashSize = 28 + Math.random() * 22;
 
                 ctx.save();
                 ctx.globalAlpha = flashAlpha;
+
+                // Bright yellow-white burst
                 const flashGrad = ctx.createRadialGradient(flashX, flashY, 0, flashX, flashY, flashSize);
-                flashGrad.addColorStop(0, '#fff');
-                flashGrad.addColorStop(0.3, '#ffa');
-                flashGrad.addColorStop(0.6, weaponColor);
-                flashGrad.addColorStop(1, 'transparent');
+                flashGrad.addColorStop(0, '#ffffff');
+                flashGrad.addColorStop(0.15, '#fffff0');
+                flashGrad.addColorStop(0.3, '#ffee66');
+                flashGrad.addColorStop(0.6, '#ffaa22');
+                flashGrad.addColorStop(1, 'rgba(255,100,0,0)');
                 ctx.fillStyle = flashGrad;
                 ctx.beginPath();
                 ctx.arc(flashX, flashY, flashSize, 0, Math.PI * 2);
                 ctx.fill();
+
+                // Flash star spikes
+                ctx.strokeStyle = `rgba(255, 255, 220, ${flashAlpha * 0.7})`;
+                ctx.lineWidth = 2.5;
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i / 5) * Math.PI * 2 + Math.random() * 0.5;
+                    const spikeLen = flashSize * (0.6 + Math.random() * 0.6);
+                    ctx.beginPath();
+                    ctx.moveTo(flashX, flashY);
+                    ctx.lineTo(flashX + Math.cos(angle) * spikeLen, flashY + Math.sin(angle) * spikeLen);
+                    ctx.stroke();
+                }
+
+                // Inner bright core
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.beginPath();
+                ctx.arc(flashX, flashY, flashSize * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+
                 ctx.globalAlpha = 1;
                 ctx.restore();
             }
         }
 
-        // ============== DRAW HUD ==============
+        // ============== DRAW HUD (Roblox Rivals style) ==============
         function drawHUD() {
             const W = canvas.width;
             const H = canvas.height;
@@ -1761,295 +2648,474 @@
             // Draw weapon view first (behind HUD)
             drawWeaponView();
 
-            // --- DAMAGE FLASH ---
+            // --- DAMAGE FLASH & DIRECTIONAL INDICATORS ---
             if (damageFlashTimer > 0) {
-                const alpha = (damageFlashTimer / 300) * 0.4;
-                ctx.fillStyle = `rgba(255, 0, 0, ${alpha})`;
-                ctx.fillRect(0, 0, W, H);
-
-                // Vignette-style damage
-                const grad = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.8);
-                grad.addColorStop(0, 'transparent');
-                grad.addColorStop(1, `rgba(255, 0, 0, ${alpha * 0.8})`);
-                ctx.fillStyle = grad;
+                const alpha = (damageFlashTimer / 300) * 0.35;
+                // Red vignette
+                const dmgGrad = ctx.createRadialGradient(W/2, H/2, H * 0.2, W/2, H/2, H * 0.85);
+                dmgGrad.addColorStop(0, 'rgba(255, 0, 0, 0)');
+                dmgGrad.addColorStop(0.5, `rgba(255, 0, 0, ${alpha * 0.2})`);
+                dmgGrad.addColorStop(0.8, `rgba(200, 0, 0, ${alpha * 0.5})`);
+                dmgGrad.addColorStop(1, `rgba(150, 0, 0, ${alpha})`);
+                ctx.fillStyle = dmgGrad;
                 ctx.fillRect(0, 0, W, H);
             }
 
+            // Directional damage indicators (red arcs/chevrons)
+            damageIndicators.forEach(di => {
+                const alpha = di.timer / 1000;
+                const relAngle = di.angle - player.yaw;
+                const indicatorDist = Math.min(W, H) * 0.38;
+                const ix = W/2 + Math.sin(relAngle) * indicatorDist;
+                const iy = H/2 - Math.cos(relAngle) * indicatorDist;
+
+                ctx.save();
+                ctx.translate(ix, iy);
+                ctx.rotate(relAngle);
+                ctx.globalAlpha = alpha * 0.8;
+
+                // Red arc/chevron with glow
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 8;
+                ctx.fillStyle = '#ff2222';
+                ctx.beginPath();
+                ctx.moveTo(0, -24);
+                ctx.lineTo(-14, 10);
+                ctx.lineTo(-7, 10);
+                ctx.lineTo(0, -8);
+                ctx.lineTo(7, 10);
+                ctx.lineTo(14, 10);
+                ctx.closePath();
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                ctx.globalAlpha = 1;
+                ctx.restore();
+            });
+
             // --- DEATH SCREEN ---
             if (isDead) {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
                 ctx.fillRect(0, 0, W, H);
 
+                // Red tint
+                ctx.fillStyle = 'rgba(100, 0, 0, 0.15)';
+                ctx.fillRect(0, 0, W, H);
+
+                // "ELIMINATED" text with glow
+                ctx.save();
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 20;
                 ctx.fillStyle = '#ef4444';
                 ctx.font = 'bold 72px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('YOU DIED', W/2, H/2 - 30);
+                ctx.fillText('ELIMINATED', W/2, H/2 - 30);
+                ctx.shadowBlur = 0;
+                ctx.restore();
 
-                ctx.fillStyle = '#888';
+                // Respawn countdown
+                const respawnSec = Math.ceil(deathTimer / 1000);
+                ctx.fillStyle = '#aaa';
                 ctx.font = '24px "Segoe UI", sans-serif';
-                ctx.fillText('Waiting for next round...', W/2, H/2 + 20);
+                ctx.textAlign = 'center';
+                ctx.fillText(`Respawning in ${respawnSec}...`, W/2, H/2 + 25);
+
+                // Progress bar for respawn
+                const respawnPct = 1 - (deathTimer / 3000);
+                ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                roundRect(ctx, W/2 - 100, H/2 + 40, 200, 6, 3);
+                ctx.fill();
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                roundRect(ctx, W/2 - 100, H/2 + 40, 200 * respawnPct, 6, 3);
+                ctx.fill();
 
                 ctx.textAlign = 'left';
             }
 
-            // --- CROSSHAIR (dynamic) ---
+            // --- CROSSHAIR (thin white + with gap and center dot, Rivals style) ---
             if (!isDead) {
                 const cx = W/2;
                 const cy = H/2;
-                const gap = 4 + crosshairSpread;
-                const len = 12;
-                const thick = 2;
+                const gap = 5 + crosshairSpread;
+                const len = 15;
+                const thick = 1.5;
 
-                ctx.fillStyle = 'rgba(255,255,255,0.9)';
-                // Center dot
-                ctx.fillRect(cx - 1, cy - 1, 2, 2);
-                // Lines
+                // Outer shadow for visibility
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(cx - gap - len - 1, cy - thick/2 - 0.5, len + 1, thick + 1);
+                ctx.fillRect(cx + gap, cy - thick/2 - 0.5, len + 1, thick + 1);
+                ctx.fillRect(cx - thick/2 - 0.5, cy - gap - len - 1, thick + 1, len + 1);
+                ctx.fillRect(cx - thick/2 - 0.5, cy + gap, thick + 1, len + 1);
+
+                // White crosshair lines
+                ctx.fillStyle = 'rgba(255,255,255,0.92)';
                 ctx.fillRect(cx - gap - len, cy - thick/2, len, thick);
                 ctx.fillRect(cx + gap, cy - thick/2, len, thick);
                 ctx.fillRect(cx - thick/2, cy - gap - len, thick, len);
                 ctx.fillRect(cx - thick/2, cy + gap, thick, len);
 
-                // Hit marker
+                // Center dot
+                ctx.fillStyle = 'rgba(255,255,255,0.95)';
+                ctx.beginPath();
+                ctx.arc(cx, cy, 1.8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Hit marker (white X with animation)
                 if (hitMarkerTimer > 0) {
                     const hAlpha = hitMarkerTimer / 200;
-                    ctx.strokeStyle = `rgba(255, 50, 50, ${hAlpha})`;
-                    ctx.lineWidth = 2;
-                    const hSize = 12;
+                    const hExpand = (1 - hAlpha) * 4;
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${hAlpha})`;
+                    ctx.lineWidth = 2.5;
+                    const hSize = 15 + hExpand;
+                    const hInner = 5 + hExpand * 0.3;
                     ctx.beginPath();
-                    ctx.moveTo(cx - hSize, cy - hSize); ctx.lineTo(cx - hSize/3, cy - hSize/3);
-                    ctx.moveTo(cx + hSize, cy - hSize); ctx.lineTo(cx + hSize/3, cy - hSize/3);
-                    ctx.moveTo(cx - hSize, cy + hSize); ctx.lineTo(cx - hSize/3, cy + hSize/3);
-                    ctx.moveTo(cx + hSize, cy + hSize); ctx.lineTo(cx + hSize/3, cy + hSize/3);
+                    ctx.moveTo(cx - hSize, cy - hSize); ctx.lineTo(cx - hInner, cy - hInner);
+                    ctx.moveTo(cx + hSize, cy - hSize); ctx.lineTo(cx + hInner, cy - hInner);
+                    ctx.moveTo(cx - hSize, cy + hSize); ctx.lineTo(cx - hInner, cy + hInner);
+                    ctx.moveTo(cx + hSize, cy + hSize); ctx.lineTo(cx + hInner, cy + hInner);
                     ctx.stroke();
                 }
             }
 
-            // --- TOP HUD BAR ---
+            // --- KILL BANNER ("YOU ELIMINATED [name]") ---
+            if (killBannerTimer > 0 && !isDead) {
+                const bannerAlpha = Math.min(1, killBannerTimer / 500);
+                const bannerScale = Math.min(1, (2500 - killBannerTimer) / 200 + 0.8); // Pop-in
+                ctx.globalAlpha = bannerAlpha;
+
+                ctx.save();
+                ctx.translate(W/2, H * 0.3);
+                ctx.scale(bannerScale, bannerScale);
+
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                roundRect(ctx, -200, -24, 400, 52, 10);
+                ctx.fill();
+
+                // Border accent
+                ctx.strokeStyle = 'rgba(255, 68, 68, 0.4)';
+                ctx.lineWidth = 1.5;
+                roundRect(ctx, -200, -24, 400, 52, 10);
+                ctx.stroke();
+
+                ctx.font = 'bold 18px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('YOU ELIMINATED', 0, 0);
+                ctx.fillStyle = '#ff4444';
+                ctx.font = 'bold 17px "Segoe UI", sans-serif';
+                ctx.fillText(killBannerName, 0, 22);
+
+                ctx.restore();
+                ctx.globalAlpha = 1;
+            }
+
+            // --- TOP CENTER: Round Score (RED 3 - 2 BLUE) ---
+            const scoreW = 300;
+            const scoreH = 46;
+            const scoreX = W/2 - scoreW/2;
+            const scoreY = 12;
+
+            // Score panel background
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            roundRect(ctx, W/2 - 160, 10, 320, 50, 10);
+            roundRect(ctx, scoreX, scoreY, scoreW, scoreH, 12);
+            ctx.fill();
+            // Subtle border
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.lineWidth = 1;
+            roundRect(ctx, scoreX, scoreY, scoreW, scoreH, 12);
+            ctx.stroke();
+
+            // RED side accent
+            ctx.fillStyle = 'rgba(255, 68, 68, 0.15)';
+            roundRect(ctx, scoreX + 3, scoreY + 3, scoreW/2 - 22, scoreH - 6, 9);
             ctx.fill();
 
-            ctx.font = 'bold 11px "Segoe UI", sans-serif';
-            ctx.fillStyle = '#666';
+            // BLUE side accent
+            ctx.fillStyle = 'rgba(68, 136, 255, 0.15)';
+            roundRect(ctx, W/2 + 19, scoreY + 3, scoreW/2 - 22, scoreH - 6, 9);
+            ctx.fill();
+
             ctx.textAlign = 'center';
-            ctx.fillText('ROUND', W/2 - 80, 28);
-            ctx.fillText('TIME', W/2, 28);
-            ctx.fillText('MODE', W/2 + 80, 28);
 
+            // "RED" label
+            ctx.font = 'bold 11px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#ff7777';
+            ctx.fillText('RED', W/2 - 85, scoreY + 17);
+
+            // Red score
+            ctx.font = 'bold 24px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#ff4444';
+            ctx.fillText(scores.red, W/2 - 42, scoreY + 38);
+
+            // Dash separator
+            ctx.fillStyle = '#666';
             ctx.font = 'bold 20px "Segoe UI", sans-serif';
-            ctx.fillStyle = '#fbbf24';
-            ctx.fillText(currentRoom?.round || '1', W/2 - 80, 50);
+            ctx.fillText('-', W/2, scoreY + 36);
 
-            // Timer with color
-            const timeColor = roundTimeLeft > 30 ? '#fbbf24' : roundTimeLeft > 10 ? '#f59e0b' : '#ef4444';
+            // Blue score
+            ctx.font = 'bold 24px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#4488ff';
+            ctx.fillText(scores.blue, W/2 + 42, scoreY + 38);
+
+            // "BLUE" label
+            ctx.font = 'bold 11px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#77aaff';
+            ctx.fillText('BLUE', W/2 + 85, scoreY + 17);
+
+            // Timer below score
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            roundRect(ctx, W/2 - 42, scoreY + scoreH + 5, 84, 24, 7);
+            ctx.fill();
+
+            const timeColor = roundTimeLeft > 30 ? '#ffffff' : roundTimeLeft > 10 ? '#fbbf24' : '#ef4444';
             ctx.fillStyle = timeColor;
+            ctx.font = 'bold 14px "Segoe UI", sans-serif';
             const mins = Math.floor(roundTimeLeft / 60);
             const secs = roundTimeLeft % 60;
-            ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, W/2, 50);
+            ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, W/2, scoreY + scoreH + 21);
 
-            ctx.fillStyle = '#fbbf24';
-            ctx.fillText(currentRoom?.mode || '2v2', W/2 + 80, 50);
-
-            // --- SCOREBOARD (inline) ---
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-            roundRect(ctx, W/2 - 70, 68, 140, 32, 8);
-            ctx.fill();
-
-            ctx.font = 'bold 22px "Segoe UI", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#ef4444';
-            ctx.fillText(scores.red, W/2 - 30, 92);
-            ctx.fillStyle = '#555';
-            ctx.fillText('-', W/2, 92);
-            ctx.fillStyle = '#3b82f6';
-            ctx.fillText(scores.blue, W/2 + 30, 92);
-
-            // --- HEALTH BAR (bottom left) ---
+            // --- BOTTOM LEFT: Health Bar (Roblox Rivals style) ---
             ctx.textAlign = 'left';
-            const hbX = 20, hbY = H - 60;
-            const hbW = 240, hbH = 24;
+            const hbX = 22, hbY = H - 68;
+            const hbW = 240, hbH = 32;
 
-            // Background
+            // Background panel
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            roundRect(ctx, hbX - 5, hbY - 25, hbW + 10, hbH + 35, 10);
+            roundRect(ctx, hbX - 8, hbY - 8, hbW + 80, hbH + 16, 12);
             ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+            ctx.lineWidth = 1;
+            roundRect(ctx, hbX - 8, hbY - 8, hbW + 80, hbH + 16, 12);
+            ctx.stroke();
 
-            ctx.font = 'bold 12px "Segoe UI", sans-serif';
-            ctx.fillStyle = '#888';
-            ctx.fillText('HEALTH', hbX, hbY - 8);
-
-            // Health number
-            ctx.font = 'bold 14px "Segoe UI", sans-serif';
+            // Health icon (+ cross)
+            const iconX = hbX + hbW + 12;
+            const iconY = hbY + hbH/2;
             const hp = Math.max(0, player.health);
-            ctx.fillStyle = hp > 50 ? '#22c55e' : hp > 25 ? '#f59e0b' : '#ef4444';
-            ctx.textAlign = 'right';
-            ctx.fillText(Math.ceil(hp), hbX + hbW, hbY - 8);
-            ctx.textAlign = 'left';
+            const hpPct = hp / 100;
+            const iconColor = hpPct > 0.5 ? '#4ade80' : hpPct > 0.25 ? '#fbbf24' : '#ef4444';
+            ctx.fillStyle = iconColor;
+            ctx.fillRect(iconX - 2, iconY - 8, 4, 16);
+            ctx.fillRect(iconX - 8, iconY - 2, 16, 4);
 
             // Track
             ctx.fillStyle = '#222';
             roundRect(ctx, hbX, hbY, hbW, hbH, 6);
             ctx.fill();
+            // Inner shadow
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            roundRect(ctx, hbX, hbY, hbW, hbH * 0.5, 6);
+            ctx.fill();
 
-            // Fill
-            const hpPct = hp / 100;
+            // Fill (gradient green-yellow-red)
             if (hpPct > 0) {
                 const hpGrad = ctx.createLinearGradient(hbX, 0, hbX + hbW * hpPct, 0);
-                if (hpPct > 0.5) {
-                    hpGrad.addColorStop(0, '#22c55e');
-                    hpGrad.addColorStop(1, '#16a34a');
-                } else if (hpPct > 0.25) {
-                    hpGrad.addColorStop(0, '#f59e0b');
-                    hpGrad.addColorStop(1, '#d97706');
+                if (hpPct > 0.6) {
+                    hpGrad.addColorStop(0, '#1aaa4a');
+                    hpGrad.addColorStop(1, '#4ade80');
+                } else if (hpPct > 0.3) {
+                    hpGrad.addColorStop(0, '#c89508');
+                    hpGrad.addColorStop(1, '#facc15');
                 } else {
-                    hpGrad.addColorStop(0, '#ef4444');
-                    hpGrad.addColorStop(1, '#dc2626');
+                    hpGrad.addColorStop(0, '#b82020');
+                    hpGrad.addColorStop(1, '#ef4444');
                 }
                 ctx.fillStyle = hpGrad;
                 roundRect(ctx, hbX, hbY, hbW * hpPct, hbH, 6);
                 ctx.fill();
+
+                // Health bar shine
+                ctx.fillStyle = 'rgba(255,255,255,0.12)';
+                roundRect(ctx, hbX + 1, hbY + 1, hbW * hpPct - 2, hbH * 0.4, 5);
+                ctx.fill();
             }
 
-            // --- WEAPON PANEL (bottom right) ---
-            const wpX = W - 280, wpY = H - 90;
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            roundRect(ctx, wpX, wpY, 260, 75, 10);
-            ctx.fill();
-
-            // Weapon color indicator bar
-            if (w) {
-                ctx.fillStyle = w.color || '#888';
-                ctx.fillRect(wpX + 8, wpY + 8, 4, 60);
-            }
-
-            // Weapon name
-            ctx.font = 'bold 18px "Segoe UI", sans-serif';
-            ctx.fillStyle = '#e94560';
-            ctx.textAlign = 'left';
-            ctx.fillText(w ? w.name : 'None', wpX + 20, wpY + 28);
-
-            // Slot indicator
-            ctx.font = '12px "Segoe UI", sans-serif';
-            ctx.fillStyle = '#666';
-            ctx.fillText(activeSlot.toUpperCase(), wpX + 20, wpY + 44);
-
-            // Ammo
-            if (w && w.type !== 'melee') {
-                const ammo = currentAmmo[activeSlot] || 0;
-                ctx.font = 'bold 28px "Segoe UI", sans-serif';
-                ctx.fillStyle = ammo > 0 ? '#fbbf24' : '#ef4444';
-                ctx.textAlign = 'right';
-                ctx.fillText(ammo, wpX + 200, wpY + 42);
-
-                ctx.font = '16px "Segoe UI", sans-serif';
-                ctx.fillStyle = '#666';
-                ctx.fillText('/ ' + (w.maxAmmo || 0), wpX + 245, wpY + 42);
-
-                if (isReloading) {
-                    ctx.font = 'bold 14px "Segoe UI", sans-serif';
-                    ctx.fillStyle = '#f59e0b';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('RELOADING...', wpX + 130, wpY + 65);
-                }
-            } else if (w && w.type === 'melee') {
-                ctx.font = '16px "Segoe UI", sans-serif';
-                ctx.fillStyle = '#888';
-                ctx.textAlign = 'right';
-                ctx.fillText('MELEE', wpX + 245, wpY + 42);
-            }
-
-            // --- WEAPON SLOTS (bottom center) ---
+            // Health number overlay (centered on bar)
+            ctx.font = 'bold 20px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#ffffff';
             ctx.textAlign = 'center';
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.6)';
+            ctx.shadowBlur = 4;
+            ctx.fillText(Math.ceil(hp), hbX + hbW/2, hbY + hbH - 7);
+            ctx.restore();
+
+            // --- BOTTOM CENTER: Ammo Display ---
+            ctx.textAlign = 'center';
+            if (w) {
+                const ammoY = H - 48;
+                const ammoPanelW = 180;
+
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                roundRect(ctx, W/2 - ammoPanelW/2, ammoY - 34, ammoPanelW, 62, 12);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+                ctx.lineWidth = 1;
+                roundRect(ctx, W/2 - ammoPanelW/2, ammoY - 34, ammoPanelW, 62, 12);
+                ctx.stroke();
+
+                // Weapon name
+                ctx.font = '12px "Segoe UI", sans-serif';
+                ctx.fillStyle = '#999';
+                ctx.fillText(w.name, W/2, ammoY - 16);
+
+                // Weapon color dot
+                ctx.fillStyle = w.color;
+                ctx.beginPath();
+                ctx.arc(W/2 - ctx.measureText(w.name).width/2 - 8, ammoY - 20, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (w.type !== 'melee') {
+                    const ammo = currentAmmo[activeSlot] || 0;
+
+                    // Large current ammo
+                    ctx.font = 'bold 30px "Segoe UI", sans-serif';
+                    ctx.fillStyle = ammo > 0 ? '#ffffff' : '#ef4444';
+                    ctx.fillText(ammo, W/2 - 18, ammoY + 18);
+
+                    // Separator
+                    ctx.fillStyle = '#555';
+                    ctx.font = '18px "Segoe UI", sans-serif';
+                    ctx.fillText('/', W/2 + 14, ammoY + 18);
+
+                    // Max ammo
+                    ctx.font = '16px "Segoe UI", sans-serif';
+                    ctx.fillStyle = '#777';
+                    ctx.fillText(w.maxAmmo || 0, W/2 + 38, ammoY + 18);
+
+                    if (isReloading) {
+                        ctx.font = 'bold 12px "Segoe UI", sans-serif';
+                        ctx.fillStyle = '#fbbf24';
+                        const reloadPct = getActiveWeapon() ? 1 - reloadTimer / getActiveWeapon().reloadTime : 0;
+                        ctx.fillText('RELOADING', W/2, ammoY - 3);
+                        // Reload progress bar
+                        ctx.fillStyle = 'rgba(251,191,36,0.2)';
+                        ctx.fillRect(W/2 - ammoPanelW/2 + 10, ammoY + 22, ammoPanelW - 20, 3);
+                        ctx.fillStyle = '#fbbf24';
+                        ctx.fillRect(W/2 - ammoPanelW/2 + 10, ammoY + 22, (ammoPanelW - 20) * reloadPct, 3);
+                    }
+                } else {
+                    ctx.font = 'bold 20px "Segoe UI", sans-serif';
+                    ctx.fillStyle = '#aaa';
+                    ctx.fillText('MELEE', W/2, ammoY + 16);
+                }
+            }
+
+            // --- WEAPON SLOTS (bottom, above ammo) ---
             const slotNames = ['primary', 'secondary', 'melee', 'utility'];
             const slotLabels = ['1', '2', '3', '4'];
-            const slotW = 44, slotGap = 6;
+            const slotW = 48, slotGap = 6;
             const totalSlotW = slotNames.length * slotW + (slotNames.length - 1) * slotGap;
             const slotStartX = W/2 - totalSlotW/2;
-            const slotY = H - 45;
+            const slotY = H - 108;
 
             slotNames.forEach((slot, i) => {
                 const sx = slotStartX + i * (slotW + slotGap);
                 const isActive = activeSlot === slot;
 
-                ctx.fillStyle = isActive ? 'rgba(99, 102, 241, 0.5)' : 'rgba(0, 0, 0, 0.5)';
-                ctx.strokeStyle = isActive ? '#6366f1' : '#333';
-                ctx.lineWidth = isActive ? 2 : 1;
-                roundRect(ctx, sx, slotY, slotW, 35, 6);
+                ctx.fillStyle = isActive ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.5)';
+                roundRect(ctx, sx, slotY, slotW, 32, 7);
                 ctx.fill();
+
+                ctx.strokeStyle = isActive ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.08)';
+                ctx.lineWidth = isActive ? 2 : 1;
+                roundRect(ctx, sx, slotY, slotW, 32, 7);
                 ctx.stroke();
+
+                // Active indicator line
+                if (isActive) {
+                    ctx.fillStyle = weapons[userLoadout[slot]]?.color || '#fff';
+                    roundRect(ctx, sx + 4, slotY + 28, slotW - 8, 2, 1);
+                    ctx.fill();
+                }
 
                 ctx.font = 'bold 10px "Segoe UI", sans-serif';
                 ctx.fillStyle = isActive ? '#fff' : '#666';
-                ctx.fillText(slotLabels[i], sx + slotW/2, slotY + 14);
+                ctx.textAlign = 'center';
+                ctx.fillText(slotLabels[i], sx + slotW/2, slotY + 13);
 
                 const wName = weapons[userLoadout[slot]]?.name || '';
-                const shortName = wName.length > 5 ? wName.substring(0, 5) : wName;
+                const shortName = wName.length > 6 ? wName.substring(0, 6) : wName;
                 ctx.font = '8px "Segoe UI", sans-serif';
                 ctx.fillStyle = isActive ? '#ccc' : '#555';
-                ctx.fillText(shortName, sx + slotW/2, slotY + 28);
+                ctx.fillText(shortName, sx + slotW/2, slotY + 25);
             });
 
-            // --- KILL FEED (top right) ---
+            // --- KILL FEED (top right, Roblox Rivals style) ---
             ctx.textAlign = 'right';
             killFeed.forEach((k, i) => {
-                const ky = 110 + i * 26;
+                const ky = 72 + i * 30;
                 const age = (Date.now() - k.time) / 5000;
                 const alpha = 1 - age;
                 if (alpha <= 0) return;
 
                 ctx.globalAlpha = alpha;
+
+                // Background pill
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-                roundRect(ctx, W - 300, ky - 14, 280, 22, 4);
+                roundRect(ctx, W - 320, ky - 13, 300, 26, 7);
                 ctx.fill();
 
-                ctx.font = '13px "Segoe UI", sans-serif';
-                const killerColor = k.killer === currentUser?.username ? '#fbbf24' : '#ccc';
-                const victimColor = k.victim === currentUser?.username ? '#fbbf24' : '#ccc';
+                ctx.font = 'bold 13px "Segoe UI", sans-serif';
+                const killerIsMe = k.killer === currentUser?.username;
+                const victimIsMe = k.victim === currentUser?.username;
 
-                // Measure text to position properly
-                ctx.fillStyle = killerColor;
+                // Killer name
                 ctx.textAlign = 'left';
-                ctx.fillText(k.killer, W - 290, ky);
+                ctx.fillStyle = killerIsMe ? '#fbbf24' : '#ffffff';
+                ctx.fillText(k.killer, W - 310, ky + 5);
 
+                // Weapon icon (skull)
                 ctx.fillStyle = '#ef4444';
                 ctx.textAlign = 'center';
-                ctx.fillText(' >> ', W - 190, ky);
+                ctx.font = '11px "Segoe UI", sans-serif';
+                ctx.fillText(' >> ', W - 195, ky + 5);
 
-                ctx.fillStyle = victimColor;
+                // Victim name
                 ctx.textAlign = 'right';
-                ctx.fillText(k.victim, W - 30, ky);
+                ctx.fillStyle = victimIsMe ? '#fbbf24' : '#cccccc';
+                ctx.font = 'bold 13px "Segoe UI", sans-serif';
+                ctx.fillText(k.victim, W - 28, ky + 5);
 
                 ctx.globalAlpha = 1;
             });
 
             // --- MINIMAP (top-left corner) ---
-            const mmSize = 130;
+            const mmSize = 150;
             const mmX = 15, mmY = 15;
-            const mmScale = mmSize / 100; // Map is -50 to 50 = 100 units
+            const mmScale = mmSize / 100;
 
             ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-            ctx.strokeStyle = 'rgba(99, 102, 241, 0.4)';
-            ctx.lineWidth = 1;
-            roundRect(ctx, mmX, mmY, mmSize, mmSize, 8);
+            roundRect(ctx, mmX, mmY, mmSize, mmSize, 10);
             ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            roundRect(ctx, mmX, mmY, mmSize, mmSize, 10);
             ctx.stroke();
 
             ctx.save();
             ctx.beginPath();
-            roundRect(ctx, mmX, mmY, mmSize, mmSize, 8);
+            roundRect(ctx, mmX, mmY, mmSize, mmSize, 10);
             ctx.clip();
 
             // Grid on minimap
-            ctx.strokeStyle = 'rgba(99, 102, 241, 0.1)';
-            for (let i = 0; i <= 4; i++) {
-                const gp = mmX + (mmSize / 4) * i;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 5; i++) {
+                const gp = mmX + (mmSize / 5) * i;
                 ctx.beginPath();
                 ctx.moveTo(gp, mmY); ctx.lineTo(gp, mmY + mmSize);
                 ctx.stroke();
                 ctx.beginPath();
-                ctx.moveTo(mmX, gp); ctx.lineTo(mmX + mmSize, gp - mmY + mmY);
+                ctx.moveTo(mmX, mmY + (mmSize / 5) * i); ctx.lineTo(mmX + mmSize, mmY + (mmSize / 5) * i);
                 ctx.stroke();
             }
+
+            // Team spawn zones on minimap
+            ctx.fillStyle = 'rgba(255, 68, 68, 0.15)';
+            ctx.fillRect(mmX + 88 * mmScale, mmY + 82 * mmScale, 12 * mmScale, 18 * mmScale);
+            ctx.fillStyle = 'rgba(68, 136, 255, 0.15)';
+            ctx.fillRect(mmX + 2 * mmScale, mmY + 2 * mmScale, 12 * mmScale, 18 * mmScale);
 
             // Obstacles on minimap
             obstacles.forEach(ob => {
@@ -2057,7 +3123,10 @@
                 const oz = mmY + (ob.z + 50) * mmScale;
                 const ow = ob.w * mmScale;
                 const od = ob.d * mmScale;
-                ctx.fillStyle = 'rgba(139, 105, 20, 0.5)';
+                if (ob.type === 'container') ctx.fillStyle = 'rgba(74, 102, 112, 0.5)';
+                else if (ob.type === 'crate') ctx.fillStyle = 'rgba(139, 105, 20, 0.5)';
+                else if (ob.type === 'platform') ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+                else ctx.fillStyle = 'rgba(150, 150, 150, 0.5)';
                 ctx.fillRect(ox - ow/2, oz - od/2, ow, od);
             });
 
@@ -2065,17 +3134,37 @@
             const pmx = mmX + (player.x + 50) * mmScale;
             const pmz = mmY + (player.z + 50) * mmScale;
 
-            // Player direction
-            ctx.strokeStyle = '#22c55e';
-            ctx.lineWidth = 1.5;
+            // Player direction cone
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
             ctx.beginPath();
             ctx.moveTo(pmx, pmz);
-            ctx.lineTo(pmx + Math.sin(player.yaw) * 8, pmz + Math.cos(player.yaw) * 8);
+            const fovAngle = 0.4;
+            ctx.lineTo(pmx + Math.sin(player.yaw - fovAngle) * 16, pmz + Math.cos(player.yaw - fovAngle) * 16);
+            ctx.lineTo(pmx + Math.sin(player.yaw + fovAngle) * 16, pmz + Math.cos(player.yaw + fovAngle) * 16);
+            ctx.closePath();
+            ctx.fill();
+
+            // Player direction line
+            ctx.strokeStyle = '#22c55e';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(pmx, pmz);
+            ctx.lineTo(pmx + Math.sin(player.yaw) * 10, pmz + Math.cos(player.yaw) * 10);
             ctx.stroke();
 
+            // Player dot (with glow)
+            ctx.fillStyle = 'rgba(34, 197, 94, 0.3)';
+            ctx.beginPath();
+            ctx.arc(pmx, pmz, 6, 0, Math.PI * 2);
+            ctx.fill();
             ctx.fillStyle = '#22c55e';
             ctx.beginPath();
-            ctx.arc(pmx, pmz, 3, 0, Math.PI * 2);
+            ctx.arc(pmx, pmz, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+            // White center
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(pmx, pmz, 1.5, 0, Math.PI * 2);
             ctx.fill();
 
             // Enemies on minimap
@@ -2083,13 +3172,22 @@
                 if (!e.alive) return;
                 const ex = mmX + (e.x + 50) * mmScale;
                 const ez = mmY + (e.z + 50) * mmScale;
-                ctx.fillStyle = e.team === 'red' ? '#ef4444' : '#3b82f6';
-                ctx.beginPath();
-                ctx.arc(ex, ez, 2.5, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.fillStyle = e.team === 'red' ? '#ff4444' : '#4488ff';
+                // Square dots for Roblox feel
+                ctx.fillRect(ex - 3, ez - 3, 6, 6);
+                // Outline
+                ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                ctx.lineWidth = 0.5;
+                ctx.strokeRect(ex - 3, ez - 3, 6, 6);
             });
 
             ctx.restore();
+
+            // Minimap label
+            ctx.font = '9px "Segoe UI", sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.textAlign = 'left';
+            ctx.fillText('MAP', mmX + 5, mmY + mmSize - 5);
 
             // --- TAB SCOREBOARD ---
             if (showingScoreboard) {
@@ -2105,63 +3203,89 @@
             ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
             ctx.fillRect(0, 0, W, H);
 
-            const sbW = 500, sbH = 400;
+            const sbW = 520, sbH = 420;
             const sbX = W/2 - sbW/2, sbY = H/2 - sbH/2;
 
-            ctx.fillStyle = 'rgba(20, 20, 40, 0.95)';
-            ctx.strokeStyle = '#6366f1';
-            ctx.lineWidth = 2;
-            roundRect(ctx, sbX, sbY, sbW, sbH, 12);
+            ctx.fillStyle = 'rgba(15, 15, 25, 0.97)';
+            roundRect(ctx, sbX, sbY, sbW, sbH, 14);
             ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            roundRect(ctx, sbX, sbY, sbW, sbH, 14);
             ctx.stroke();
 
             // Title
-            ctx.font = 'bold 24px "Segoe UI", sans-serif';
-            ctx.fillStyle = '#e94560';
+            ctx.font = 'bold 26px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#ffffff';
             ctx.textAlign = 'center';
-            ctx.fillText('SCOREBOARD', W/2, sbY + 35);
+            ctx.fillText('SCOREBOARD', W/2, sbY + 38);
 
             // Score
-            ctx.font = 'bold 32px "Segoe UI", sans-serif';
-            ctx.fillStyle = '#ef4444';
-            ctx.fillText(scores.red, W/2 - 60, sbY + 75);
+            ctx.font = 'bold 40px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#ff4444';
+            ctx.fillText(scores.red, W/2 - 65, sbY + 85);
             ctx.fillStyle = '#555';
-            ctx.fillText('-', W/2, sbY + 75);
-            ctx.fillStyle = '#3b82f6';
-            ctx.fillText(scores.blue, W/2 + 60, sbY + 75);
+            ctx.font = 'bold 28px "Segoe UI", sans-serif';
+            ctx.fillText('-', W/2, sbY + 83);
+            ctx.font = 'bold 40px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#4488ff';
+            ctx.fillText(scores.blue, W/2 + 65, sbY + 85);
+
+            // Team labels
+            ctx.font = 'bold 12px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#ff6666';
+            ctx.fillText('RED', W/2 - 65, sbY + 100);
+            ctx.fillStyle = '#66aaff';
+            ctx.fillText('BLUE', W/2 + 65, sbY + 100);
 
             // Column headers
-            ctx.font = 'bold 12px "Segoe UI", sans-serif';
+            ctx.font = 'bold 11px "Segoe UI", sans-serif';
             ctx.fillStyle = '#666';
             ctx.textAlign = 'left';
-            ctx.fillText('PLAYER', sbX + 30, sbY + 105);
+            ctx.fillText('PLAYER', sbX + 30, sbY + 125);
             ctx.textAlign = 'center';
-            ctx.fillText('TEAM', sbX + 280, sbY + 105);
-            ctx.fillText('STATUS', sbX + 380, sbY + 105);
+            ctx.fillText('TEAM', sbX + 310, sbY + 125);
+            ctx.fillText('STATUS', sbX + 440, sbY + 125);
+
+            // Divider line
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(sbX + 20, sbY + 133);
+            ctx.lineTo(sbX + sbW - 20, sbY + 133);
+            ctx.stroke();
 
             // Player rows
             const allPlayers = [...enemies.map(e => ({ ...e, isMe: false }))];
             allPlayers.unshift({ username: currentUser?.username, team: currentRoom?.players?.find(p => p.username === currentUser?.username)?.team || 'blue', alive: !isDead, health: player.health, isMe: true });
 
             allPlayers.forEach((p, i) => {
-                const rowY = sbY + 120 + i * 30;
+                const rowY = sbY + 145 + i * 34;
                 if (rowY > sbY + sbH - 20) return;
 
                 // Row background
-                ctx.fillStyle = p.isMe ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255,255,255,0.03)';
-                ctx.fillRect(sbX + 15, rowY - 8, sbW - 30, 26);
+                ctx.fillStyle = p.isMe ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255,255,255,0.02)';
+                roundRect(ctx, sbX + 15, rowY - 8, sbW - 30, 30, 5);
+                ctx.fill();
+
+                if (p.isMe) {
+                    ctx.strokeStyle = 'rgba(251,191,36,0.2)';
+                    ctx.lineWidth = 1;
+                    roundRect(ctx, sbX + 15, rowY - 8, sbW - 30, 30, 5);
+                    ctx.stroke();
+                }
 
                 ctx.font = '14px "Segoe UI", sans-serif';
                 ctx.textAlign = 'left';
-                ctx.fillStyle = p.isMe ? '#fbbf24' : '#ccc';
-                ctx.fillText(p.username || 'Unknown', sbX + 30, rowY + 8);
+                ctx.fillStyle = p.isMe ? '#fbbf24' : '#ddd';
+                ctx.fillText(p.username || 'Unknown', sbX + 30, rowY + 12);
 
                 ctx.textAlign = 'center';
-                ctx.fillStyle = p.team === 'red' ? '#ef4444' : '#3b82f6';
-                ctx.fillText(p.team?.toUpperCase() || 'N/A', sbX + 280, rowY + 8);
+                ctx.fillStyle = p.team === 'red' ? '#ff4444' : '#4488ff';
+                ctx.fillText(p.team?.toUpperCase() || 'N/A', sbX + 310, rowY + 12);
 
                 ctx.fillStyle = p.alive ? '#22c55e' : '#ef4444';
-                ctx.fillText(p.alive ? 'ALIVE' : 'DEAD', sbX + 380, rowY + 8);
+                ctx.fillText(p.alive ? 'ALIVE' : 'DEAD', sbX + 440, rowY + 12);
             });
 
             ctx.textAlign = 'left';
@@ -2169,6 +3293,9 @@
 
         // ============== ROUNDED RECT HELPER ==============
         function roundRect(ctx, x, y, w, h, r) {
+            if (w < 0) w = 0;
+            if (h < 0) h = 0;
+            r = Math.min(r, w/2, h/2);
             ctx.beginPath();
             ctx.moveTo(x + r, y);
             ctx.lineTo(x + w - r, y);
