@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>RIVALS - Multiplayer FPS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -173,6 +174,97 @@
 
         /* ERROR */
         .error-msg { color: #ef4444; font-size: 14px; margin-bottom: 10px; display: none; }
+
+        /* ============== TOUCH CONTROLS ============== */
+        .touch-controls { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 200; pointer-events: none; }
+        .touch-controls.active { display: block; }
+
+        .touch-joystick-zone {
+            position: absolute; bottom: 30px; left: 20px; width: 150px; height: 150px;
+            border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15);
+            pointer-events: auto; touch-action: none;
+        }
+        .touch-joystick-knob {
+            position: absolute; top: 50%; left: 50%; width: 60px; height: 60px;
+            margin-left: -30px; margin-top: -30px; border-radius: 50%;
+            background: rgba(99, 102, 241, 0.5); border: 2px solid rgba(99, 102, 241, 0.7);
+            pointer-events: none; transition: none;
+        }
+
+        .touch-aim-zone {
+            position: absolute; top: 0; right: 0; width: 50%; height: 100%;
+            pointer-events: auto; touch-action: none;
+        }
+
+        .touch-btn {
+            position: absolute; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-family: 'Segoe UI', sans-serif; font-weight: bold; color: white; pointer-events: auto; touch-action: none;
+            user-select: none; -webkit-user-select: none;
+        }
+        .touch-btn:active { transform: scale(0.9); }
+
+        .touch-shoot-btn {
+            bottom: 140px; right: 30px; width: 80px; height: 80px;
+            background: rgba(239, 68, 68, 0.5); border: 3px solid rgba(239, 68, 68, 0.7);
+            font-size: 14px;
+        }
+        .touch-jump-btn {
+            bottom: 50px; right: 130px; width: 60px; height: 60px;
+            background: rgba(34, 197, 94, 0.4); border: 2px solid rgba(34, 197, 94, 0.6);
+            font-size: 12px;
+        }
+        .touch-reload-btn {
+            bottom: 240px; right: 40px; width: 48px; height: 48px;
+            background: rgba(251, 191, 36, 0.4); border: 2px solid rgba(251, 191, 36, 0.6);
+            font-size: 16px;
+        }
+
+        .touch-weapon-bar {
+            position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 8px; pointer-events: auto; touch-action: none;
+        }
+        .touch-weapon-slot {
+            width: 42px; height: 42px; border-radius: 8px;
+            background: rgba(0, 0, 0, 0.5); border: 2px solid rgba(99, 102, 241, 0.4);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: bold; color: #aaa;
+            font-family: 'Segoe UI', sans-serif; user-select: none; -webkit-user-select: none;
+        }
+        .touch-weapon-slot.active { border-color: #6366f1; color: #fff; background: rgba(99, 102, 241, 0.3); }
+
+        /* Gamepad indicator */
+        .gamepad-indicator {
+            position: fixed; top: 10px; right: 10px; padding: 6px 14px;
+            background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.5);
+            border-radius: 6px; color: #22c55e; font-size: 12px; font-family: 'Segoe UI', sans-serif;
+            z-index: 300; display: none; pointer-events: none;
+        }
+
+        /* ============== MOBILE RESPONSIVE ============== */
+        @media (max-width: 768px) {
+            #auth-screen h1 { font-size: 32px; margin-bottom: 20px; }
+            .auth-form { width: 90%; max-width: 320px; padding: 24px; }
+            .auth-form input { padding: 10px 12px; font-size: 14px; }
+            .auth-form button { padding: 10px; font-size: 14px; }
+
+            .menu-header { padding: 10px 15px; flex-wrap: wrap; gap: 8px; }
+            .menu-header h1 { font-size: 22px; }
+            .user-info { gap: 10px; font-size: 13px; }
+
+            .menu-content { flex-direction: column; padding: 15px; gap: 15px; }
+            .menu-right { width: 100%; }
+            .mode-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+            .mode-btn { padding: 12px; }
+            .mode-btn .icon { font-size: 22px; }
+            .mode-btn .label { font-size: 14px; }
+
+            .room-content { flex-direction: column; }
+            .room-right { width: 100%; }
+            .players-list { flex-direction: column; gap: 10px; }
+            .room-header { padding: 12px 15px; }
+            .loadout-slots { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+            .start-btn { padding: 14px; font-size: 18px; }
+        }
     </style>
 </head>
 <body>
@@ -302,6 +394,26 @@
     <div id="game-screen">
         <canvas id="gameCanvas"></canvas>
     </div>
+
+    <!-- TOUCH CONTROLS (hidden on desktop, shown on touch devices when in-game) -->
+    <div class="touch-controls" id="touch-controls">
+        <div class="touch-joystick-zone" id="touch-joystick">
+            <div class="touch-joystick-knob" id="touch-joystick-knob"></div>
+        </div>
+        <div class="touch-aim-zone" id="touch-aim-zone"></div>
+        <div class="touch-btn touch-shoot-btn" id="touch-shoot">FIRE</div>
+        <div class="touch-btn touch-jump-btn" id="touch-jump">JUMP</div>
+        <div class="touch-btn touch-reload-btn" id="touch-reload">R</div>
+        <div class="touch-weapon-bar" id="touch-weapon-bar">
+            <div class="touch-weapon-slot active" data-slot="primary">1</div>
+            <div class="touch-weapon-slot" data-slot="secondary">2</div>
+            <div class="touch-weapon-slot" data-slot="melee">3</div>
+            <div class="touch-weapon-slot" data-slot="utility">4</div>
+        </div>
+    </div>
+
+    <!-- GAMEPAD INDICATOR -->
+    <div class="gamepad-indicator" id="gamepad-indicator">Gamepad Connected</div>
 
     <script>
         const socket = io(window.location.origin);
@@ -554,6 +666,7 @@
             currentRoom = null;
             document.getElementById('room-screen').style.display = 'none';
             document.getElementById('game-screen').style.display = 'none';
+            hideTouchControls();
             gameState = 'menu';
             if (roundTimerInterval) clearInterval(roundTimerInterval);
             showMenu();
@@ -758,9 +871,15 @@
         function startGame(data) {
             document.getElementById('room-screen').style.display = 'none';
             document.getElementById('game-screen').style.display = 'block';
-            canvas.requestPointerLock();
+
+            // On touch devices, show touch controls instead of pointer lock
+            if (isTouchDevice) {
+                showTouchControls();
+            } else {
+                canvas.requestPointerLock();
+            }
             canvas.addEventListener('click', () => {
-                if (document.pointerLockElement !== canvas && gameState === 'playing') {
+                if (!isTouchDevice && document.pointerLockElement !== canvas && gameState === 'playing') {
                     canvas.requestPointerLock();
                 }
             });
@@ -889,8 +1008,9 @@
         document.addEventListener('mouseup', (e) => {
             if (e.button === 0) mouseDown = false;
         });
-        canvas.addEventListener('touchstart', () => { mouseDown = true; shoot(); });
-        canvas.addEventListener('touchend', () => { mouseDown = false; });
+        // Legacy canvas touch (only active on non-touch-control devices as fallback)
+        canvas.addEventListener('touchstart', () => { if (!isTouchDevice) { mouseDown = true; shoot(); } });
+        canvas.addEventListener('touchend', () => { if (!isTouchDevice) { mouseDown = false; } });
 
         document.addEventListener('keydown', e => {
             keys[e.key.toLowerCase()] = true;
@@ -969,7 +1089,7 @@
 
             if (isDead) return;
 
-            // Movement
+            // Movement (keyboard + joystick + gamepad)
             const speed = 8;
             let moveX = 0, moveZ = 0;
             let isMoving = false;
@@ -977,6 +1097,21 @@
             if (keys['s']) { moveZ += 1; isMoving = true; }
             if (keys['a']) { moveX += 1; isMoving = true; }
             if (keys['d']) { moveX -= 1; isMoving = true; }
+
+            // Touch joystick input (joystickInput: x>0=right, y>0=down on screen)
+            // Game axes: moveZ-=1 is forward(W), moveX+=1 is left(A), moveX-=1 is right(D)
+            if (joystickActive && (Math.abs(joystickInput.x) > 0.1 || Math.abs(joystickInput.y) > 0.1)) {
+                moveX -= joystickInput.x;  // right on stick = right in game (D)
+                moveZ += joystickInput.y;  // up on stick (neg y) = forward (W: moveZ-=1)
+                isMoving = true;
+            }
+
+            // Gamepad left stick input (same axis convention)
+            if (Math.abs(gamepadMoveInput.x) > 0 || Math.abs(gamepadMoveInput.y) > 0) {
+                moveX -= gamepadMoveInput.x;
+                moveZ += gamepadMoveInput.y;
+                isMoving = true;
+            }
 
             if (isMoving) crosshairSpread = Math.min(crosshairSpread + dt * 10, 15);
 
@@ -2049,6 +2184,7 @@
 
         // ============== GAME LOOP ==============
         function gameLoop() {
+            pollGamepad();
             update();
             if (gameState === 'playing') {
                 render();
@@ -2056,6 +2192,307 @@
             requestAnimationFrame(gameLoop);
         }
 
+        // ============== TOUCH DEVICE DETECTION ==============
+        const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+        // ============== MOBILE TOUCH CONTROLS ==============
+        const touchControls = document.getElementById('touch-controls');
+        const touchJoystick = document.getElementById('touch-joystick');
+        const touchJoystickKnob = document.getElementById('touch-joystick-knob');
+        const touchAimZone = document.getElementById('touch-aim-zone');
+        const touchShootBtn = document.getElementById('touch-shoot');
+        const touchJumpBtn = document.getElementById('touch-jump');
+        const touchReloadBtn = document.getElementById('touch-reload');
+        const touchWeaponBar = document.getElementById('touch-weapon-bar');
+
+        // Joystick state
+        let joystickActive = false;
+        let joystickTouchId = null;
+        let joystickOrigin = { x: 0, y: 0 };
+        let joystickInput = { x: 0, y: 0 }; // -1 to 1 for each axis
+
+        // Aim touch state
+        let aimTouchId = null;
+        let aimLastPos = { x: 0, y: 0 };
+
+        // Shoot touch state
+        let shootTouchActive = false;
+
+        function showTouchControls() {
+            if (isTouchDevice) {
+                touchControls.classList.add('active');
+            }
+        }
+
+        function hideTouchControls() {
+            touchControls.classList.remove('active');
+        }
+
+        // --- JOYSTICK ---
+        touchJoystick.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            joystickActive = true;
+            const rect = touchJoystick.getBoundingClientRect();
+            joystickOrigin.x = rect.left + rect.width / 2;
+            joystickOrigin.y = rect.top + rect.height / 2;
+        }, { passive: false });
+
+        touchJoystick.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === joystickTouchId) {
+                    const dx = touch.clientX - joystickOrigin.x;
+                    const dy = touch.clientY - joystickOrigin.y;
+                    const maxDist = 55;
+                    const dist = Math.min(Math.hypot(dx, dy), maxDist);
+                    const angle = Math.atan2(dy, dx);
+                    joystickInput.x = (dist / maxDist) * Math.cos(angle);
+                    joystickInput.y = (dist / maxDist) * Math.sin(angle);
+                    // Move knob visually
+                    const knobX = joystickInput.x * maxDist;
+                    const knobY = joystickInput.y * maxDist;
+                    touchJoystickKnob.style.marginLeft = (knobX - 30) + 'px';
+                    touchJoystickKnob.style.marginTop = (knobY - 30) + 'px';
+                }
+            }
+        }, { passive: false });
+
+        function resetJoystick() {
+            joystickActive = false;
+            joystickTouchId = null;
+            joystickInput.x = 0;
+            joystickInput.y = 0;
+            touchJoystickKnob.style.marginLeft = '-30px';
+            touchJoystickKnob.style.marginTop = '-30px';
+        }
+
+        touchJoystick.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetJoystick();
+                }
+            }
+        });
+        touchJoystick.addEventListener('touchcancel', resetJoystick);
+
+        // --- AIM ZONE ---
+        touchAimZone.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            // Only use the first touch that isn't already tracked
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (aimTouchId === null) {
+                    aimTouchId = touch.identifier;
+                    aimLastPos.x = touch.clientX;
+                    aimLastPos.y = touch.clientY;
+                }
+            }
+        }, { passive: false });
+
+        touchAimZone.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === aimTouchId) {
+                    const dx = touch.clientX - aimLastPos.x;
+                    const dy = touch.clientY - aimLastPos.y;
+                    player.yaw += dx * 0.004;
+                    player.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, player.pitch - dy * 0.004));
+                    aimLastPos.x = touch.clientX;
+                    aimLastPos.y = touch.clientY;
+                }
+            }
+        }, { passive: false });
+
+        touchAimZone.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === aimTouchId) {
+                    aimTouchId = null;
+                }
+            }
+        });
+        touchAimZone.addEventListener('touchcancel', () => { aimTouchId = null; });
+
+        // --- SHOOT BUTTON ---
+        touchShootBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            shootTouchActive = true;
+            mouseDown = true;
+            shoot();
+        }, { passive: false });
+        touchShootBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            shootTouchActive = false;
+            mouseDown = false;
+        }, { passive: false });
+        touchShootBtn.addEventListener('touchcancel', () => { shootTouchActive = false; mouseDown = false; });
+
+        // --- JUMP BUTTON ---
+        touchJumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (player.grounded && !isDead) {
+                player.vy = 15;
+                player.grounded = false;
+            }
+        }, { passive: false });
+
+        // --- RELOAD BUTTON ---
+        touchReloadBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startReload();
+        }, { passive: false });
+
+        // --- WEAPON SWITCH BUTTONS ---
+        touchWeaponBar.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const slot = e.target.closest('.touch-weapon-slot');
+            if (slot) {
+                const slotName = slot.dataset.slot;
+                switchWeapon(slotName);
+                // Update active visual
+                touchWeaponBar.querySelectorAll('.touch-weapon-slot').forEach(s => s.classList.remove('active'));
+                slot.classList.add('active');
+            }
+        }, { passive: false });
+
+        // ============== GAMEPAD SUPPORT ==============
+        let gamepadConnected = false;
+        let gamepadIndex = null;
+        const gamepadIndicator = document.getElementById('gamepad-indicator');
+
+        // Gamepad state tracking for button edges (pressed this frame)
+        let prevGamepadButtons = [];
+        const GAMEPAD_DEADZONE = 0.15;
+        const GAMEPAD_AIM_SENSITIVITY = 0.06;
+
+        window.addEventListener('gamepadconnected', (e) => {
+            gamepadConnected = true;
+            gamepadIndex = e.gamepad.index;
+            gamepadIndicator.style.display = 'block';
+            gamepadIndicator.textContent = 'Gamepad: ' + e.gamepad.id.substring(0, 30);
+            prevGamepadButtons = new Array(e.gamepad.buttons.length).fill(false);
+            console.log('Gamepad connected:', e.gamepad.id);
+        });
+
+        window.addEventListener('gamepaddisconnected', (e) => {
+            if (e.gamepad.index === gamepadIndex) {
+                gamepadConnected = false;
+                gamepadIndex = null;
+                gamepadIndicator.style.display = 'none';
+                prevGamepadButtons = [];
+                console.log('Gamepad disconnected');
+            }
+        });
+
+        function applyDeadzone(value) {
+            return Math.abs(value) < GAMEPAD_DEADZONE ? 0 : value;
+        }
+
+        function pollGamepad() {
+            if (!gamepadConnected || gamepadIndex === null) return;
+
+            const gamepads = navigator.getGamepads();
+            const gp = gamepads[gamepadIndex];
+            if (!gp) return;
+
+            // --- LEFT STICK: Movement ---
+            const lx = applyDeadzone(gp.axes[0] || 0); // left-right
+            const ly = applyDeadzone(gp.axes[1] || 0); // up-down
+
+            // Replace WASD-style movement with gamepad left stick
+            if (gameState === 'playing' && !isDead) {
+                if (Math.abs(lx) > 0 || Math.abs(ly) > 0) {
+                    gamepadMoveInput.x = lx;
+                    gamepadMoveInput.y = ly;
+                } else {
+                    gamepadMoveInput.x = 0;
+                    gamepadMoveInput.y = 0;
+                }
+            }
+
+            // --- RIGHT STICK: Aim/look ---
+            const rx = applyDeadzone(gp.axes[2] || 0);
+            const ry = applyDeadzone(gp.axes[3] || 0);
+
+            if (gameState === 'playing') {
+                player.yaw += rx * GAMEPAD_AIM_SENSITIVITY;
+                player.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, player.pitch - ry * GAMEPAD_AIM_SENSITIVITY));
+            }
+
+            // --- BUTTONS (detect edges for single-press actions) ---
+            const currButtons = gp.buttons.map(b => b.pressed);
+
+            // Right trigger (index 7 = RT/R2) - Shoot
+            if (gp.buttons[7] && gp.buttons[7].value > 0.1) {
+                mouseDown = true;
+                if (gameState === 'playing') shoot();
+            } else {
+                // Only release mouseDown if touch shoot is not active
+                if (!shootTouchActive) mouseDown = false;
+            }
+
+            // A / Cross (index 0) - Jump
+            if (currButtons[0] && !prevGamepadButtons[0]) {
+                if (player.grounded && !isDead && gameState === 'playing') {
+                    player.vy = 15;
+                    player.grounded = false;
+                }
+            }
+
+            // X / Square (index 2) - Reload
+            if (currButtons[2] && !prevGamepadButtons[2]) {
+                if (gameState === 'playing') startReload();
+            }
+
+            // D-pad left (index 14) - Previous weapon
+            if (currButtons[14] && !prevGamepadButtons[14]) {
+                cycleWeapon(-1);
+            }
+            // D-pad right (index 15) - Next weapon
+            if (currButtons[15] && !prevGamepadButtons[15]) {
+                cycleWeapon(1);
+            }
+
+            // Left bumper (index 4) - Previous weapon
+            if (currButtons[4] && !prevGamepadButtons[4]) {
+                cycleWeapon(-1);
+            }
+            // Right bumper (index 5) - Next weapon
+            if (currButtons[5] && !prevGamepadButtons[5]) {
+                cycleWeapon(1);
+            }
+
+            // Start button (index 9) - Ready up in lobby
+            if (currButtons[9] && !prevGamepadButtons[9]) {
+                if (currentRoom && gameState !== 'playing') {
+                    setReady();
+                }
+            }
+
+            prevGamepadButtons = currButtons;
+        }
+
+        // Weapon cycling helper for gamepad
+        function cycleWeapon(direction) {
+            const slots = ['primary', 'secondary', 'melee', 'utility'];
+            let idx = slots.indexOf(activeSlot);
+            idx = (idx + direction + slots.length) % slots.length;
+            switchWeapon(slots[idx]);
+            // Also update touch weapon bar visual
+            if (isTouchDevice) {
+                touchWeaponBar.querySelectorAll('.touch-weapon-slot').forEach(s => {
+                    s.classList.toggle('active', s.dataset.slot === slots[idx]);
+                });
+            }
+        }
+
+        // Gamepad movement input (applied in update loop)
+        let gamepadMoveInput = { x: 0, y: 0 };
+
+        // ============== PATCHED GAME LOOP ==============
         gameLoop();
     </script>
 </body>
