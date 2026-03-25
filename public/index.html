@@ -709,7 +709,12 @@
             document.getElementById('game-screen').style.display = 'block';
             document.getElementById('hud').style.display = 'block';
             canvas.requestPointerLock();
-            
+            canvas.addEventListener('click', () => {
+                if (document.pointerLockElement !== canvas) {
+                    canvas.requestPointerLock();
+                }
+            });
+
             gameState = 'playing';
             scores = { red: 0, blue: 0 };
             player.health = 100;
@@ -767,6 +772,9 @@
         
         document.addEventListener('keydown', e => {
             keys[e.key.toLowerCase()] = true;
+            if (e.key === 'f' && gameState === 'playing') {
+                document.dispatchEvent(new Event('mousedown'));
+            }
             if (e.key === ' ' && player.grounded) {
                 player.vy = 15;
                 player.grounded = false;
@@ -777,7 +785,14 @@
         
         function update() {
             if (gameState !== 'playing') return;
-            
+
+            // Arrow keys for aiming (no mouse needed)
+            const aimSpeed = 0.04;
+            if (keys['arrowleft']) player.yaw -= aimSpeed;
+            if (keys['arrowright']) player.yaw += aimSpeed;
+            if (keys['arrowup']) player.pitch = Math.min(Math.PI/2 - 0.1, player.pitch + aimSpeed);
+            if (keys['arrowdown']) player.pitch = Math.max(-Math.PI/2 + 0.1, player.pitch - aimSpeed);
+
             const speed = 8;
             let moveX = 0, moveZ = 0;
             if (keys['w']) moveZ += 1;
