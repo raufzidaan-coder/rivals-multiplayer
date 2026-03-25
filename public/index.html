@@ -735,6 +735,10 @@
                 if (document.pointerLockElement === canvas) {
                     player.yaw += e.movementX * 0.002;
                     player.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, player.pitch - e.movementY * 0.002));
+                } else if (gameState === 'playing') {
+                    // Trackpad support without pointer lock
+                    player.yaw += e.movementX * 0.003;
+                    player.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, player.pitch - e.movementY * 0.003));
                 }
             });
         }
