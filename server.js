@@ -20,18 +20,49 @@ const MAX_PLAYERS_PER_ROOM = 10;
 
 // Weapon database (same as client)
 const weapons = {
+    // === PRIMARY WEAPONS ===
     AssaultRifle: { name: 'Assault Rifle', type: 'primary', damage: 15, fireRate: 80, maxAmmo: 30, speed: 20, color: '#6366f1' },
     Shotgun: { name: 'Shotgun', type: 'primary', damage: 12, fireRate: 700, maxAmmo: 8, speed: 12, color: '#f59e0b', count: 6 },
     Sniper: { name: 'Sniper', type: 'primary', damage: 120, fireRate: 1200, maxAmmo: 5, speed: 35, color: '#ef4444' },
     SMG: { name: 'SMG', type: 'primary', damage: 10, fireRate: 50, maxAmmo: 40, speed: 22, color: '#22c55e' },
+    Bow: { name: 'Bow', type: 'primary', damage: 50, fireRate: 1000, maxAmmo: 1, speed: 15, color: '#a855f7', special: 'doublejump' },
+    BurstRifle: { name: 'Burst Rifle', type: 'primary', damage: 18, fireRate: 600, maxAmmo: 15, speed: 22, color: '#3b82f6', burst: 3 },
+    Crossbow: { name: 'Crossbow', type: 'primary', damage: 75, fireRate: 1000, maxAmmo: 1, speed: 18, color: '#92400e' },
+    RPG: { name: 'RPG', type: 'primary', damage: 100, fireRate: 1500, maxAmmo: 1, speed: 10, color: '#dc2626', explosive: true, splash: 50 },
+    Minigun: { name: 'Minigun', type: 'primary', damage: 8, fireRate: 50, maxAmmo: 300, speed: 18, color: '#737373', spinup: 800 },
+    Flamethrower: { name: 'Flamethrower', type: 'primary', damage: 5, fireRate: 30, maxAmmo: 100, speed: 8, color: '#f97316', burn: true, dps: 85 },
+    GrenadeLauncher: { name: 'Grenade Launcher', type: 'primary', damage: 80, fireRate: 600, maxAmmo: 6, speed: 12, color: '#854d0e', explosive: true, splash: 40 },
+    EnergyRifle: { name: 'Energy Rifle', type: 'primary', damage: 20, fireRate: 300, maxAmmo: 999, speed: 25, color: '#06b6d4', bounce: 2 },
+    Gunblade: { name: 'Gunblade', type: 'primary', damage: 45, fireRate: 750, maxAmmo: 12, speed: 14, color: '#e11d48', meleeDamage: 35 },
+    PaintballGun: { name: 'Paintball Gun', type: 'primary', damage: 18, fireRate: 150, maxAmmo: 16, speed: 16, color: '#d946ef', blind: true },
+
+    // === SECONDARY WEAPONS ===
     Handgun: { name: 'Handgun', type: 'secondary', damage: 20, fireRate: 250, maxAmmo: 12, speed: 18, color: '#aaa' },
     Exogun: { name: 'Exogun', type: 'secondary', damage: 25, fireRate: 300, maxAmmo: 10, speed: 16, color: '#a855f7' },
+    Revolver: { name: 'Revolver', type: 'secondary', damage: 40, fireRate: 400, maxAmmo: 6, speed: 20, color: '#b45309', fan: true },
+    Shorty: { name: 'Shorty', type: 'secondary', damage: 12, fireRate: 120, maxAmmo: 2, speed: 10, color: '#78716c', count: 10 },
+    Uzi: { name: 'Uzi', type: 'secondary', damage: 9, fireRate: 60, maxAmmo: 25, speed: 20, color: '#525252' },
+    FlareGun: { name: 'Flare Gun', type: 'secondary', damage: 15, fireRate: 800, maxAmmo: 2, speed: 14, color: '#fb923c', burn: true, dot: 50 },
+    Slingshot: { name: 'Slingshot', type: 'secondary', damage: 30, fireRate: 500, maxAmmo: 1, speed: 22, color: '#a16207' },
+
+    // === MELEE WEAPONS ===
     Fists: { name: 'Fists', type: 'melee', damage: 25, fireRate: 500, maxAmmo: 0, speed: 0, color: '#22c55e', special: 'doublejump' },
     Knife: { name: 'Knife', type: 'melee', damage: 35, fireRate: 400, maxAmmo: 0, speed: 0, color: '#aaa' },
     Daggers: { name: 'Daggers', type: 'melee', damage: 20, fireRate: 300, maxAmmo: 0, speed: 5, color: '#22d3ee', speedboost: true },
+    Katana: { name: 'Katana', type: 'melee', damage: 45, fireRate: 500, maxAmmo: 0, speed: 0, color: '#f43f5e', reflect: true },
+    BattleAxe: { name: 'Battle Axe', type: 'melee', damage: 60, fireRate: 800, maxAmmo: 0, speed: 0, color: '#7c2d12' },
+    Chainsaw: { name: 'Chainsaw', type: 'melee', damage: 15, fireRate: 100, maxAmmo: 0, speed: 0, color: '#facc15', speedboost: true, dps: 150 },
+    Scythe: { name: 'Scythe', type: 'melee', damage: 55, fireRate: 700, maxAmmo: 0, speed: 0, color: '#7c3aed' },
+    RiotShield: { name: 'Riot Shield', type: 'melee', damage: 20, fireRate: 600, maxAmmo: 0, speed: 0, color: '#2563eb', block: true },
+    Trowel: { name: 'Trowel', type: 'melee', damage: 30, fireRate: 450, maxAmmo: 0, speed: 0, color: '#65a30d', build: true },
+
+    // === UTILITY ===
     Grenade: { name: 'Grenade', type: 'utility', damage: 80, fireRate: 1500, maxAmmo: 2, speed: 12, color: '#ef4444', explosive: true },
     Medkit: { name: 'Medkit', type: 'utility', heal: 50, fireRate: 3000, maxAmmo: 2, color: '#4ade80' },
-    Bow: { name: 'Bow', type: 'primary', damage: 50, fireRate: 1000, maxAmmo: 1, speed: 15, color: '#a855f7', special: 'doublejump' }
+    Flashbang: { name: 'Flashbang', type: 'utility', damage: 0, fireRate: 2000, maxAmmo: 2, speed: 14, color: '#fef08a', blind: true, duration: 3000 },
+    FreezeRay: { name: 'Freeze Ray', type: 'utility', damage: 10, fireRate: 200, maxAmmo: 50, speed: 10, color: '#7dd3fc', slow: 0.5 },
+    JumpPad: { name: 'Jump Pad', type: 'utility', damage: 0, fireRate: 5000, maxAmmo: 3, speed: 0, color: '#34d399', launch: true },
+    Molotov: { name: 'Molotov', type: 'utility', damage: 15, fireRate: 2000, maxAmmo: 1, speed: 12, color: '#ea580c', burn: true, zone: true, duration: 5000 }
 };
 
 // Load users from file
