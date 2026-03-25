@@ -380,7 +380,7 @@
     </div>
 
     <script>
-        const socket = io('http://localhost:3001');
+        const socket = io(window.location.origin);
         
         socket.on('connect', () => console.log('Socket connected:', socket.id));
         socket.on('connect_error', (err) => console.error('Connection error:', err));
