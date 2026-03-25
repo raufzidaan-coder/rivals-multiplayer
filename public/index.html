@@ -746,18 +746,18 @@
         let canShoot = true;
         let lastShot = 0;
         
-        document.addEventListener('mousedown', () => {
+        function shoot() {
             if (gameState !== 'playing') return;
-            
+
             const weapon = weapons[userLoadout.primary];
             const now = Date.now();
-            
+
             if (now - lastShot < weapon.fireRate) return;
             lastShot = now;
-            
+
             const spread = (Math.random() - 0.5) * 5;
             const pitch = player.pitch + spread * 0.01;
-            
+
             const bullet = {
                 x: player.x,
                 y: player.y + 1,
@@ -768,17 +768,19 @@
                 damage: weapon.damage,
                 color: weapon.color
             };
-            
+
             bullets.push(bullet);
             socket.emit('shoot', bullet);
             updateHUD();
-        });
-        
+        }
+
+        document.addEventListener('mousedown', () => shoot());
+        canvas.addEventListener('mousedown', () => shoot());
+        canvas.addEventListener('touchstart', () => shoot());
+
         document.addEventListener('keydown', e => {
             keys[e.key.toLowerCase()] = true;
-            if (e.key === 'f' && gameState === 'playing') {
-                document.dispatchEvent(new Event('mousedown'));
-            }
+            if (e.key === 'f') shoot();
             if (e.key === ' ' && player.grounded) {
                 player.vy = 15;
                 player.grounded = false;
