@@ -18,6 +18,106 @@ const sessions = new Map(); // socket.id -> {username}
 const rooms = new Map(); // roomId -> {players, gameState, scores, etc.}
 const MAX_PLAYERS_PER_ROOM = 10;
 
+// Per-match tracking data: socketId -> { kills, damage, roundsWon, weaponsUsed, meleeKills, sniperKills, matchesPlayed }
+const matchTracking = new Map();
+
+// ============== WEAPON SHOP CONFIG ==============
+const weaponPrices = {
+    // Default (free)
+    AssaultRifle: { price: 0, levelReq: 1 },
+    Handgun: { price: 0, levelReq: 1 },
+    Fists: { price: 0, levelReq: 1 },
+    Grenade: { price: 0, levelReq: 1 },
+    // Cheap (5 keys, level 1)
+    SMG: { price: 5, levelReq: 1 },
+    Knife: { price: 5, levelReq: 1 },
+    Medkit: { price: 5, levelReq: 1 },
+    Shorty: { price: 5, levelReq: 1 },
+    Uzi: { price: 5, levelReq: 1 },
+    Slingshot: { price: 5, levelReq: 1 },
+    Daggers: { price: 5, levelReq: 1 },
+    Trowel: { price: 5, levelReq: 1 },
+    // Medium (15 keys, level 3)
+    Shotgun: { price: 15, levelReq: 3 },
+    Bow: { price: 15, levelReq: 3 },
+    BurstRifle: { price: 15, levelReq: 3 },
+    Revolver: { price: 15, levelReq: 3 },
+    FlareGun: { price: 15, levelReq: 3 },
+    Katana: { price: 15, levelReq: 3 },
+    BattleAxe: { price: 15, levelReq: 3 },
+    Flashbang: { price: 15, levelReq: 3 },
+    FreezeRay: { price: 15, levelReq: 3 },
+    // Expensive (30 keys, level 5)
+    Sniper: { price: 30, levelReq: 5 },
+    Crossbow: { price: 30, levelReq: 5 },
+    RPG: { price: 30, levelReq: 5 },
+    Minigun: { price: 30, levelReq: 5 },
+    EnergyRifle: { price: 30, levelReq: 5 },
+    Gunblade: { price: 30, levelReq: 5 },
+    Chainsaw: { price: 30, levelReq: 5 },
+    Scythe: { price: 30, levelReq: 5 },
+    RiotShield: { price: 30, levelReq: 5 },
+    Molotov: { price: 30, levelReq: 5 },
+    // Premium (50 keys, level 8)
+    Flamethrower: { price: 50, levelReq: 8 },
+    GrenadeLauncher: { price: 50, levelReq: 8 },
+    PaintballGun: { price: 50, levelReq: 8 },
+    Exogun: { price: 50, levelReq: 8 },
+    JumpPad: { price: 50, levelReq: 8 }
+};
+
+// ============== TASK DEFINITIONS ==============
+const taskDefinitions = [
+    { id: 'kill5', name: 'Get 5 kills', description: 'Eliminate 5 enemies', target: 5, stat: 'kills', rewardKeys: 5, rewardXP: 50 },
+    { id: 'winMatch', name: 'Win a match', description: 'Win a full match', target: 1, stat: 'matchWins', rewardKeys: 10, rewardXP: 100 },
+    { id: 'sniper3', name: 'Get 3 headshots', description: 'Get 3 kills with Sniper', target: 3, stat: 'sniperKills', rewardKeys: 8, rewardXP: 80 },
+    { id: 'play3', name: 'Play 3 matches', description: 'Complete 3 matches', target: 3, stat: 'matchesPlayed', rewardKeys: 5, rewardXP: 50 },
+    { id: 'damage500', name: 'Deal 500 damage', description: 'Deal 500 total damage', target: 500, stat: 'damage', rewardKeys: 5, rewardXP: 50 },
+    { id: 'win3rounds', name: 'Win 3 rounds', description: 'Win 3 rounds in any match', target: 3, stat: 'roundsWon', rewardKeys: 8, rewardXP: 75 },
+    { id: 'meleeKill', name: 'Get a kill with melee', description: 'Eliminate someone with a melee weapon', target: 1, stat: 'meleeKills', rewardKeys: 5, rewardXP: 40 },
+    { id: 'use3weapons', name: 'Use 3 different weapons', description: 'Use 3 different weapons in a match', target: 3, stat: 'weaponsUsed', rewardKeys: 5, rewardXP: 50 }
+];
+
+// ============== XP / LEVELING ==============
+function xpNeededForLevel(level) {
+    return level * 100;
+}
+
+function getTotalXPForLevel(level) {
+    // Total XP needed to reach this level from 0
+    let total = 0;
+    for (let l = 1; l < level; l++) {
+        total += xpNeededForLevel(l);
+    }
+    return total;
+}
+
+function addXP(user, amount, socket) {
+    user.xp += amount;
+    let leveled = false;
+    // Check for level up(s)
+    while (user.xp >= getTotalXPForLevel(user.level) + xpNeededForLevel(user.level)) {
+        user.level++;
+        user.keys += 5; // Bonus keys per level
+        leveled = true;
+        if (socket) {
+            socket.emit('levelUp', { level: user.level, keys: user.keys, xp: user.xp });
+        }
+    }
+    return leveled;
+}
+
+// Assign 3 random tasks to a user
+function assignTasks(user) {
+    const shuffled = [...taskDefinitions].sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, 3);
+    user.tasks = selected.map(t => ({
+        ...t,
+        progress: 0,
+        claimed: false
+    }));
+}
+
 // Weapon database (same as client)
 const weapons = {
     // === PRIMARY WEAPONS ===
@@ -70,7 +170,14 @@ function loadUsers() {
     try {
         if (fs.existsSync('users.json')) {
             const data = JSON.parse(fs.readFileSync('users.json', 'utf8'));
-            data.forEach(user => users.set(user.username, user));
+            data.forEach(user => {
+                // Migration: ensure new fields exist on old users
+                if (!user.tasks) user.tasks = [];
+                if (user.xp === undefined) user.xp = 0;
+                if (user.level === undefined) user.level = 1;
+                if (user.keys === undefined) user.keys = 10;
+                users.set(user.username, user);
+            });
         }
     } catch (e) {
         console.log('No saved users yet');
@@ -88,7 +195,7 @@ function createUser(username, password) {
     if (users.has(username)) {
         return { success: false, message: 'Username taken' };
     }
-    
+
     const user = {
         username,
         password, // In production, hash this!
@@ -106,9 +213,13 @@ function createUser(username, password) {
             melee: 'Fists',
             utility: 'Grenade'
         },
+        tasks: [],
         created: Date.now()
     };
-    
+
+    // Assign initial tasks
+    assignTasks(user);
+
     users.set(username, user);
     saveUsers();
     return { success: true, user };
@@ -144,18 +255,44 @@ function createRoom(mode, hostUsername) {
         spectators: [],
         maxPlayers: mode === '1v1' ? 2 : mode === '2v2' ? 4 : 10
     };
-    
+
     rooms.set(roomId, room);
     return room;
+}
+
+// Initialize match tracking for a player
+function initMatchTracking(socketId) {
+    matchTracking.set(socketId, {
+        kills: 0,
+        damage: 0,
+        roundsWon: 0,
+        weaponsUsed: new Set(),
+        meleeKills: 0,
+        sniperKills: 0,
+        matchesPlayed: 0
+    });
+}
+
+// Update task progress for a user
+function updateTaskProgress(user, stat, amount) {
+    if (!user.tasks) return;
+    let updated = false;
+    user.tasks.forEach(task => {
+        if (task.stat === stat && !task.claimed) {
+            task.progress = Math.min(task.target, task.progress + amount);
+            updated = true;
+        }
+    });
+    return updated;
 }
 
 // Socket.IO connection
 io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
-    
+
     let currentUser = null;
     let currentRoom = null;
-    
+
     // Register
     socket.on('register', (data, callback) => {
         console.log('Register attempt:', data.username);
@@ -163,7 +300,7 @@ io.on('connection', (socket) => {
         console.log('Register result:', result);
         callback(result);
     });
-    
+
     // Login
     socket.on('login', (data, callback) => {
         console.log('Login attempt:', data.username);
@@ -171,6 +308,11 @@ io.on('connection', (socket) => {
         if (user) {
             currentUser = user;
             sessions.set(socket.id, user.username);
+            // Assign tasks if none exist or refresh them on login
+            if (!user.tasks || user.tasks.length === 0) {
+                assignTasks(user);
+                saveUsers();
+            }
             console.log('Login success:', data.username);
             callback({ success: true, user });
         } else {
@@ -178,7 +320,7 @@ io.on('connection', (socket) => {
             callback({ success: false, message: 'Invalid credentials' });
         }
     });
-    
+
     // Logout
     socket.on('logout', () => {
         if (currentRoom) {
@@ -187,14 +329,125 @@ io.on('connection', (socket) => {
         currentUser = null;
         sessions.delete(socket.id);
     });
-    
+
+    // ============== SHOP EVENTS ==============
+    socket.on('getShop', (callback) => {
+        if (!currentUser) return;
+        const shopData = {};
+        for (const [weaponKey, shopInfo] of Object.entries(weaponPrices)) {
+            const wep = weapons[weaponKey];
+            shopData[weaponKey] = {
+                name: wep ? wep.name : weaponKey,
+                type: wep ? wep.type : 'unknown',
+                damage: wep ? (wep.damage || 0) : 0,
+                fireRate: wep ? (wep.fireRate || 0) : 0,
+                price: shopInfo.price,
+                levelReq: shopInfo.levelReq,
+                owned: currentUser.inventory.includes(weaponKey),
+                canAfford: currentUser.keys >= shopInfo.price,
+                meetsLevel: currentUser.level >= shopInfo.levelReq
+            };
+        }
+        callback({
+            shop: shopData,
+            keys: currentUser.keys,
+            level: currentUser.level,
+            xp: currentUser.xp,
+            xpNeeded: getTotalXPForLevel(currentUser.level) + xpNeededForLevel(currentUser.level)
+        });
+    });
+
+    socket.on('buyWeapon', (weaponKey, callback) => {
+        if (!currentUser) {
+            callback({ success: false, message: 'Not logged in' });
+            return;
+        }
+        const shopInfo = weaponPrices[weaponKey];
+        if (!shopInfo) {
+            callback({ success: false, message: 'Unknown weapon' });
+            return;
+        }
+        if (currentUser.inventory.includes(weaponKey)) {
+            callback({ success: false, message: 'Already owned' });
+            return;
+        }
+        if (currentUser.level < shopInfo.levelReq) {
+            callback({ success: false, message: `Need level ${shopInfo.levelReq}` });
+            return;
+        }
+        if (currentUser.keys < shopInfo.price) {
+            callback({ success: false, message: 'Not enough keys' });
+            return;
+        }
+        currentUser.keys -= shopInfo.price;
+        currentUser.inventory.push(weaponKey);
+        saveUsers();
+        callback({ success: true, keys: currentUser.keys, inventory: currentUser.inventory });
+    });
+
+    // ============== TASK EVENTS ==============
+    socket.on('getTasks', (callback) => {
+        if (!currentUser) return;
+        callback({
+            tasks: currentUser.tasks || [],
+            keys: currentUser.keys,
+            level: currentUser.level,
+            xp: currentUser.xp,
+            xpNeeded: getTotalXPForLevel(currentUser.level) + xpNeededForLevel(currentUser.level)
+        });
+    });
+
+    socket.on('claimTask', (taskId, callback) => {
+        if (!currentUser) {
+            callback({ success: false, message: 'Not logged in' });
+            return;
+        }
+        const task = (currentUser.tasks || []).find(t => t.id === taskId);
+        if (!task) {
+            callback({ success: false, message: 'Task not found' });
+            return;
+        }
+        if (task.claimed) {
+            callback({ success: false, message: 'Already claimed' });
+            return;
+        }
+        if (task.progress < task.target) {
+            callback({ success: false, message: 'Task not complete' });
+            return;
+        }
+        task.claimed = true;
+        currentUser.keys += task.rewardKeys;
+        addXP(currentUser, task.rewardXP, socket);
+        saveUsers();
+        callback({
+            success: true,
+            keys: currentUser.keys,
+            xp: currentUser.xp,
+            level: currentUser.level,
+            xpNeeded: getTotalXPForLevel(currentUser.level) + xpNeededForLevel(currentUser.level)
+        });
+    });
+
+    socket.on('refreshTasks', (callback) => {
+        if (!currentUser) return;
+        // Only allow refresh if all tasks are claimed
+        const allClaimed = (currentUser.tasks || []).every(t => t.claimed);
+        if (allClaimed) {
+            assignTasks(currentUser);
+            saveUsers();
+            callback({ success: true, tasks: currentUser.tasks });
+        } else {
+            callback({ success: false, message: 'Complete all current tasks first' });
+        }
+    });
+
     // Create room
     socket.on('createRoom', (mode, callback) => {
         if (!currentUser) {
             callback({ success: false, message: 'Not logged in' });
             return;
         }
-        
+
         const room = createRoom(mode, currentUser.username);
         room.players.push({
             username: currentUser.username,
@@ -203,43 +456,43 @@ io.on('connection', (socket) => {
             ready: true,
             loadout: currentUser.equipped
         });
-        
+
         currentRoom = room;
         socket.join(room.id);
         callback({ success: true, room });
-        
+
         // Notify others
         io.to(room.id).emit('roomUpdate', room);
     });
-    
+
     // Join room
     socket.on('joinRoom', (roomId, callback) => {
         if (!currentUser) {
             callback({ success: false, message: 'Not logged in' });
             return;
         }
-        
+
         const room = rooms.get(roomId);
         if (!room) {
             callback({ success: false, message: 'Room not found' });
             return;
         }
-        
+
         if (room.players.length >= room.maxPlayers) {
             callback({ success: false, message: 'Room full' });
             return;
         }
-        
+
         if (room.gameState !== 'lobby') {
             callback({ success: false, message: 'Game already started' });
             return;
         }
-        
+
         // Assign team
         const redCount = room.players.filter(p => p.team === 'red').length;
         const blueCount = room.players.filter(p => p.team === 'blue').length;
         const team = redCount <= blueCount ? 'red' : 'blue';
-        
+
         room.players.push({
             username: currentUser.username,
             socketId: socket.id,
@@ -247,28 +500,28 @@ io.on('connection', (socket) => {
             ready: false,
             loadout: currentUser.equipped
         });
-        
+
         currentRoom = room;
         socket.join(room.id);
-        
+
         callback({ success: true, room });
         io.to(room.id).emit('roomUpdate', room);
     });
-    
+
     // Leave room
     socket.on('leaveRoom', () => {
         leaveRoom(socket);
     });
-    
+
     // Set ready
     socket.on('setReady', (ready) => {
         if (!currentRoom || !currentUser) return;
-        
+
         const player = currentRoom.players.find(p => p.username === currentUser.username);
         if (player) {
             player.ready = ready;
             io.to(currentRoom.id).emit('roomUpdate', currentRoom);
-            
+
             // Check if all ready and enough players
             const allReady = currentRoom.players.every(p => p.ready);
             const minPlayers = currentRoom.mode === '1v1' ? 2 : currentRoom.mode === '2v2' ? 4 : 10;
@@ -277,11 +530,11 @@ io.on('connection', (socket) => {
             }
         }
     });
-    
+
     // Set loadout
     socket.on('setLoadout', (loadout, callback) => {
         if (!currentUser) return;
-        
+
         // Validate weapons
         for (const key in loadout) {
             const weapon = loadout[key];
@@ -290,9 +543,9 @@ io.on('connection', (socket) => {
                 return;
             }
         }
-        
+
         currentUser.equipped = loadout;
-        
+
         // Update room if in one
         if (currentRoom) {
             const player = currentRoom.players.find(p => p.username === currentUser.username);
@@ -301,60 +554,78 @@ io.on('connection', (socket) => {
                 io.to(currentRoom.id).emit('roomUpdate', currentRoom);
             }
         }
-        
+
         callback({ success: true });
     });
-    
+
     // Switch team
     socket.on('switchTeam', (callback) => {
         if (!currentRoom || !currentUser) return;
-        
+
         const player = currentRoom.players.find(p => p.username === currentUser.username);
         if (player) {
             player.team = player.team === 'red' ? 'blue' : 'red';
             io.to(currentRoom.id).emit('roomUpdate', currentRoom);
         }
     });
-    
+
     // Player input / movement sync
     socket.on('playerUpdate', (data) => {
         if (!currentRoom || currentRoom.gameState !== 'playing') return;
-        
+
         // Broadcast to other players in room
         socket.to(currentRoom.id).emit('playerMoved', {
             username: currentUser.username,
             ...data
         });
     });
-    
+
     // Shoot event
     socket.on('shoot', (data) => {
         if (!currentRoom || currentRoom.gameState !== 'playing') return;
-        
+
+        // Track weapon used
+        const tracking = matchTracking.get(socket.id);
+        if (tracking && data.weaponKey) {
+            tracking.weaponsUsed.add(data.weaponKey);
+        }
+
         socket.to(currentRoom.id).emit('bulletFired', {
             username: currentUser.username,
             ...data
         });
     });
-    
+
     // Hit event
     socket.on('hit', (data) => {
         if (!currentRoom || currentRoom.gameState !== 'playing') return;
-        
+
         // Update stats
         const targetUser = users.get(data.target);
         if (targetUser) {
             targetUser.deaths++;
         }
         currentUser.kills++;
-        
+
+        // Track damage for tasks
+        const tracking = matchTracking.get(socket.id);
+        if (tracking) {
+            tracking.damage += (data.damage || 0);
+            if (data.weaponKey) {
+                tracking.weaponsUsed.add(data.weaponKey);
+            }
+        }
+
+        // Update task progress for damage
+        updateTaskProgress(currentUser, 'damage', data.damage || 0);
+
         socket.to(currentRoom.id).emit('playerHit', {
             target: data.target,
             damage: data.damage,
             attacker: currentUser.username
         });
     });
-    
+
     // Kill event
     socket.on('kill', (data) => {
         if (!currentRoom) return;
@@ -362,6 +633,38 @@ io.on('connection', (socket) => {
         // Mark player as dead
         const victim = currentRoom.players.find(p => p.username === data.target);
         if (victim) victim.alive = false;
+
+        // Track kills
+        const tracking = matchTracking.get(socket.id);
+        if (tracking) {
+            tracking.kills++;
+            // Check weapon type for melee/sniper kills
+            if (data.weaponKey) {
+                const wep = weapons[data.weaponKey];
+                if (wep && wep.type === 'melee') {
+                    tracking.meleeKills++;
+                }
+                if (data.weaponKey === 'Sniper') {
+                    tracking.sniperKills++;
+                }
+                tracking.weaponsUsed.add(data.weaponKey);
+            }
+        }
+
+        // Update task progress for kills
+        updateTaskProgress(currentUser, 'kills', 1);
+        if (data.weaponKey) {
+            const wep = weapons[data.weaponKey];
+            if (wep && wep.type === 'melee') {
+                updateTaskProgress(currentUser, 'meleeKills', 1);
+            }
+            if (data.weaponKey === 'Sniper') {
+                updateTaskProgress(currentUser, 'sniperKills', 1);
+            }
+        }
+
+        // XP for kills
+        addXP(currentUser, 10, socket);
 
         io.to(currentRoom.id).emit('playerKilled', {
             victim: data.target,
@@ -374,6 +677,20 @@ io.on('connection', (socket) => {
 
         if (redAlive === 0) {
             currentRoom.scores.blue++;
+
+            // Award round win XP and tracking to blue team
+            currentRoom.players.forEach(p => {
+                if (p.team === 'blue') {
+                    const pUser = users.get(p.username);
+                    const pTracking = matchTracking.get(p.socketId);
+                    if (pUser) {
+                        addXP(pUser, 25, io.sockets.sockets.get(p.socketId));
+                        updateTaskProgress(pUser, 'roundsWon', 1);
+                    }
+                    if (pTracking) pTracking.roundsWon++;
+                }
+            });
+
             io.to(currentRoom.id).emit('roundEnd', { winner: 'blue', scores: currentRoom.scores, round: currentRoom.round });
 
             if (currentRoom.scores.blue >= 5) {
@@ -383,6 +700,20 @@ io.on('connection', (socket) => {
             }
         } else if (blueAlive === 0) {
             currentRoom.scores.red++;
+
+            // Award round win XP and tracking to red team
+            currentRoom.players.forEach(p => {
+                if (p.team === 'red') {
+                    const pUser = users.get(p.username);
+                    const pTracking = matchTracking.get(p.socketId);
+                    if (pUser) {
+                        addXP(pUser, 25, io.sockets.sockets.get(p.socketId));
+                        updateTaskProgress(pUser, 'roundsWon', 1);
+                    }
+                    if (pTracking) pTracking.roundsWon++;
+                }
+            });
+
             io.to(currentRoom.id).emit('roundEnd', { winner: 'red', scores: currentRoom.scores, round: currentRoom.round });
 
             if (currentRoom.scores.red >= 5) {
@@ -392,7 +723,7 @@ io.on('connection', (socket) => {
             }
         }
     });
-    
+
     // Get room list
     socket.on('getRooms', (callback) => {
         const roomList = Array.from(rooms.values())
@@ -406,36 +737,37 @@ io.on('connection', (socket) => {
             }));
         callback(roomList);
     });
-    
+
     // Get user data
     socket.on('getUserData', (callback) => {
         if (currentUser) {
             callback(currentUser);
         }
     });
-    
+
     // Disconnect
     socket.on('disconnect', () => {
         console.log('Player disconnected:', socket.id);
-        
+
         if (currentRoom) {
             leaveRoom(socket);
         }
-        
+
+        matchTracking.delete(socket.id);
         sessions.delete(socket.id);
     });
-    
+
     // Helper functions
     function leaveRoom(socket) {
         if (!currentRoom || !currentUser) return;
-        
+
         const playerIndex = currentRoom.players.findIndex(p => p.username === currentUser.username);
         if (playerIndex !== -1) {
             currentRoom.players.splice(playerIndex, 1);
         }
-        
+
         socket.leave(currentRoom.id);
-        
+
         if (currentRoom.players.length === 0) {
             rooms.delete(currentRoom.id);
         } else {
@@ -443,31 +775,33 @@ io.on('connection', (socket) => {
             if (currentRoom.host === currentUser.username && currentRoom.players.length > 0) {
                 currentRoom.host = currentRoom.players[0].username;
             }
-            
+
             io.to(currentRoom.id).emit('roomUpdate', currentRoom);
         }
-        
+
+        matchTracking.delete(socket.id);
         currentRoom = null;
     }
-    
+
     function startGame(room) {
         room.gameState = 'playing';
         room.scores = { red: 0, blue: 0 };
         room.round = 1;
-        
-        // Reset player states and set spawn positions
+
+        // Initialize match tracking for all players
         room.players.forEach(p => {
+            initMatchTracking(p.socketId);
             p.alive = true;
             p.health = 100;
             p.position = getSpawnPosition(room, p.team);
         });
-        
+
         io.to(room.id).emit('gameStart', {
             map: room.map,
             mode: room.mode,
             players: room.players
         });
-        
+
         // Send round start with positions
         io.to(room.id).emit('roundStart', {
             round: room.round,
@@ -475,48 +809,101 @@ io.on('connection', (socket) => {
             positions: room.players.map(p => ({ username: p.username, position: p.position }))
         });
     }
-    
+
     function startRound(room) {
         room.round++;
         room.time = 120;
-        
+
         // Respawn all players
         room.players.forEach(p => {
             p.alive = true;
             p.health = 100;
             p.position = getSpawnPosition(room, p.team);
         });
-        
+
         io.to(room.id).emit('roundStart', {
             round: room.round,
             time: room.time,
             positions: room.players.map(p => ({ username: p.username, position: p.position }))
         });
     }
-    
+
     function endGame(room, winner) {
         room.gameState = 'ended';
-        
-        // Update stats
+
+        // Calculate and send rewards to each player
         room.players.forEach(p => {
             const user = users.get(p.username);
-            if (user) {
-                if (p.team === winner) {
-                    user.wins++;
-                } else {
-                    user.losses++;
-                }
+            const tracking = matchTracking.get(p.socketId);
+            const pSocket = io.sockets.sockets.get(p.socketId);
+            if (!user) return;
+
+            const isWinner = p.team === winner;
+            if (isWinner) {
+                user.wins++;
+            } else {
+                user.losses++;
+            }
+
+            // Calculate rewards
+            let xpEarned = 15; // match participation
+            let keysEarned = 2; // match participation
+            const breakdown = {
+                participation: { xp: 15, keys: 2 },
+                roundWins: { xp: 0, keys: 0 },
+                matchWin: { xp: 0, keys: 0 },
+                kills: { xp: 0, keys: 0 }
+            };
+
+            // Round wins already awarded incrementally, but include in breakdown
+            if (tracking) {
+                breakdown.roundWins.xp = tracking.roundsWon * 25;
+                // kills XP already awarded incrementally
+                breakdown.kills.xp = tracking.kills * 10;
+
+                // Weapons used task
+                updateTaskProgress(user, 'weaponsUsed', tracking.weaponsUsed.size);
+            }
+
+            if (isWinner) {
+                xpEarned += 50;
+                keysEarned += 5;
+                breakdown.matchWin = { xp: 50, keys: 5 };
+                updateTaskProgress(user, 'matchWins', 1);
+            }
+
+            // Apply participation rewards (round/kill XP already given incrementally)
+            addXP(user, 15, pSocket); // participation XP
+            user.keys += keysEarned;
+
+            // Match played task
+            updateTaskProgress(user, 'matchesPlayed', 1);
+            if (tracking) tracking.matchesPlayed++;
+
+            // Send rewards breakdown to player
+            if (pSocket) {
+                pSocket.emit('matchRewards', {
+                    xpEarned: xpEarned + (tracking ? tracking.roundsWon * 25 + tracking.kills * 10 : 0),
+                    keysEarned,
+                    breakdown,
+                    newXP: user.xp,
+                    newKeys: user.keys,
+                    newLevel: user.level,
+                    xpNeeded: getTotalXPForLevel(user.level) + xpNeededForLevel(user.level),
+                    tasks: user.tasks,
+                    isWinner
+                });
             }
         });
-        
+
         saveUsers();
-        
+
         io.to(room.id).emit('gameEnd', {
             winner: winner,
             scores: room.scores
         });
     }
-    
+
     function getSpawnPosition(room, team) {
         const mapSize = 100;
         const side = team === 'red' ? -1 : 1;

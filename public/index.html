@@ -232,6 +232,158 @@
         }
         .touch-weapon-slot.active { border-color: #6366f1; color: #fff; background: rgba(99, 102, 241, 0.3); }
 
+        /* ============== SHOP PANEL ============== */
+        #shop-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.92); z-index: 500; overflow-y: auto;
+        }
+        .shop-container {
+            max-width: 900px; margin: 30px auto; padding: 20px;
+        }
+        .shop-header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+        }
+        .shop-header h2 { color: #fbbf24; font-size: 32px; }
+        .shop-player-info { display: flex; gap: 20px; align-items: center; }
+        .shop-player-info span { color: #fff; font-size: 16px; font-weight: bold; }
+        .shop-close-btn {
+            padding: 10px 25px; background: #ef4444; border: none; border-radius: 8px;
+            color: white; cursor: pointer; font-size: 16px; font-weight: bold;
+        }
+        .shop-category { margin-bottom: 24px; }
+        .shop-category h3 { color: #6366f1; font-size: 18px; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 6px; }
+        .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+        .shop-item {
+            padding: 14px; border-radius: 10px; border: 2px solid #333;
+            background: rgba(30,30,50,0.9); cursor: pointer; transition: all 0.2s;
+        }
+        .shop-item:hover { transform: translateY(-2px); }
+        .shop-item.owned { border-color: #22c55e; }
+        .shop-item.affordable { border-color: #fbbf24; }
+        .shop-item.locked { border-color: #555; opacity: 0.6; }
+        .shop-item.too-expensive { border-color: #ef4444; opacity: 0.7; }
+        .shop-item-name { color: #fff; font-weight: bold; font-size: 14px; margin-bottom: 4px; }
+        .shop-item-type { color: #888; font-size: 11px; text-transform: uppercase; margin-bottom: 6px; }
+        .shop-item-stats { color: #aaa; font-size: 11px; margin-bottom: 8px; }
+        .shop-item-price { display: flex; justify-content: space-between; align-items: center; }
+        .shop-item-price .price { color: #fbbf24; font-weight: bold; }
+        .shop-item-price .level-req { color: #a78bfa; font-size: 11px; }
+        .shop-item-owned { color: #22c55e; font-weight: bold; font-size: 12px; }
+        .shop-buy-btn {
+            padding: 4px 12px; background: #22c55e; border: none; border-radius: 6px;
+            color: white; font-size: 12px; font-weight: bold; cursor: pointer;
+        }
+        .shop-buy-btn:disabled { background: #555; cursor: not-allowed; }
+        .shop-item-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+
+        /* ============== TASKS PANEL ============== */
+        #tasks-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.92); z-index: 500; overflow-y: auto;
+        }
+        .tasks-container { max-width: 600px; margin: 60px auto; padding: 20px; }
+        .tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .tasks-header h2 { color: #a78bfa; font-size: 28px; }
+        .tasks-close-btn {
+            padding: 10px 25px; background: #ef4444; border: none; border-radius: 8px;
+            color: white; cursor: pointer; font-size: 16px; font-weight: bold;
+        }
+        .task-card {
+            background: rgba(30,30,50,0.95); border: 2px solid #333; border-radius: 12px;
+            padding: 16px; margin-bottom: 14px; transition: all 0.2s;
+        }
+        .task-card.completed { border-color: #22c55e; }
+        .task-card.claimed { border-color: #555; opacity: 0.5; }
+        .task-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .task-name { color: #fff; font-weight: bold; font-size: 16px; }
+        .task-reward { color: #fbbf24; font-size: 13px; }
+        .task-desc { color: #888; font-size: 13px; margin-bottom: 10px; }
+        .task-progress-bar { background: #222; border-radius: 6px; height: 10px; overflow: hidden; margin-bottom: 8px; }
+        .task-progress-fill { height: 100%; border-radius: 6px; transition: width 0.3s; }
+        .task-progress-text { color: #aaa; font-size: 12px; }
+        .task-claim-btn {
+            padding: 6px 18px; background: #22c55e; border: none; border-radius: 6px;
+            color: white; font-weight: bold; cursor: pointer; font-size: 13px;
+            animation: glow-pulse 1.5s ease-in-out infinite;
+        }
+        .task-claim-btn:disabled { background: #555; cursor: not-allowed; animation: none; }
+        @keyframes glow-pulse {
+            0%, 100% { box-shadow: 0 0 5px #22c55e; }
+            50% { box-shadow: 0 0 20px #22c55e, 0 0 40px rgba(34,197,94,0.3); }
+        }
+        .refresh-tasks-btn {
+            width: 100%; padding: 12px; background: #6366f1; border: none; border-radius: 8px;
+            color: white; font-size: 14px; font-weight: bold; cursor: pointer; margin-top: 10px;
+        }
+        .refresh-tasks-btn:disabled { background: #444; cursor: not-allowed; }
+
+        /* ============== LEVEL UP NOTIFICATION ============== */
+        #levelup-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85); z-index: 600;
+            justify-content: center; align-items: center; flex-direction: column;
+        }
+        #levelup-overlay.active { display: flex; }
+        .levelup-text {
+            color: #fbbf24; font-size: 64px; font-weight: bold; text-shadow: 0 0 40px #fbbf24;
+            animation: levelup-pop 0.5s ease-out;
+        }
+        .levelup-level { color: #fff; font-size: 32px; margin-top: 10px; }
+        .levelup-unlocks { color: #a78bfa; font-size: 18px; margin-top: 20px; text-align: center; }
+        @keyframes levelup-pop {
+            0% { transform: scale(0.3); opacity: 0; }
+            60% { transform: scale(1.15); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ============== MATCH REWARDS OVERLAY ============== */
+        #rewards-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9); z-index: 550;
+            justify-content: center; align-items: center;
+        }
+        #rewards-overlay.active { display: flex; }
+        .rewards-container {
+            background: rgba(20,20,40,0.98); border: 2px solid #333; border-radius: 16px;
+            padding: 30px 40px; max-width: 450px; width: 90%; text-align: center;
+        }
+        .rewards-title { color: #fbbf24; font-size: 28px; font-weight: bold; margin-bottom: 20px; }
+        .rewards-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222; }
+        .rewards-row .label { color: #aaa; }
+        .rewards-row .value { color: #22c55e; font-weight: bold; }
+        .rewards-row .value.keys { color: #fbbf24; }
+        .rewards-xp-bar { background: #222; border-radius: 8px; height: 16px; overflow: hidden; margin: 16px 0 8px; }
+        .rewards-xp-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #a78bfa); border-radius: 8px; transition: width 1s ease-out; }
+        .rewards-xp-text { color: #aaa; font-size: 13px; margin-bottom: 16px; }
+        .rewards-continue-btn {
+            padding: 12px 40px; background: #6366f1; border: none; border-radius: 10px;
+            color: white; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px;
+        }
+
+        /* ============== MENU BUTTONS ROW ============== */
+        .menu-buttons-row { display: flex; gap: 12px; margin-top: 15px; }
+        .menu-action-btn {
+            flex: 1; padding: 14px; border-radius: 10px; border: 2px solid transparent;
+            font-size: 16px; font-weight: bold; color: white; cursor: pointer; text-align: center;
+            transition: all 0.2s;
+        }
+        .menu-action-btn:hover { transform: translateY(-2px); }
+        .shop-btn-menu { background: linear-gradient(180deg, #f59e0b, #d97706); }
+        .tasks-btn-menu { background: linear-gradient(180deg, #a78bfa, #7c3aed); }
+
+        /* ============== XP BAR IN MENU ============== */
+        .xp-bar-container { margin-top: 8px; }
+        .xp-bar-track { background: #222; border-radius: 6px; height: 8px; overflow: hidden; width: 200px; }
+        .xp-bar-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #a78bfa); border-radius: 6px; transition: width 0.3s; }
+        .xp-bar-label { color: #888; font-size: 11px; margin-top: 2px; }
+
+        @media (max-width: 768px) {
+            .shop-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+            .shop-container { padding: 10px; margin: 10px auto; }
+            .tasks-container { padding: 10px; margin: 20px auto; }
+            .menu-buttons-row { flex-direction: column; }
+        }
+
         /* Gamepad indicator */
         .gamepad-indicator {
             position: fixed; top: 10px; right: 10px; padding: 6px 14px;
@@ -291,6 +443,10 @@
                 <span id="user-display">Username</span>
                 <span>🔑 <span id="user-keys">0</span></span>
                 <span>⭐ Lv <span id="user-level">1</span></span>
+                <div class="xp-bar-container">
+                    <div class="xp-bar-track"><div class="xp-bar-fill" id="menu-xp-fill" style="width:0%"></div></div>
+                    <div class="xp-bar-label" id="menu-xp-label">0 / 100 XP</div>
+                </div>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
         </div>
@@ -318,6 +474,11 @@
                 <div class="panel">
                     <h3>CREATE ROOM</h3>
                     <button class="create-room-btn" onclick="createRoom()">CREATE ROOM</button>
+                </div>
+
+                <div class="menu-buttons-row">
+                    <button class="menu-action-btn shop-btn-menu" onclick="openShop()">SHOP</button>
+                    <button class="menu-action-btn tasks-btn-menu" onclick="openTasks()">TASKS</button>
                 </div>
             </div>
 
@@ -414,6 +575,51 @@
 
     <!-- GAMEPAD INDICATOR -->
     <div class="gamepad-indicator" id="gamepad-indicator">Gamepad Connected</div>
+
+    <!-- SHOP OVERLAY -->
+    <div id="shop-overlay">
+        <div class="shop-container">
+            <div class="shop-header">
+                <h2>WEAPON SHOP</h2>
+                <div class="shop-player-info">
+                    <span id="shop-keys">0 Keys</span>
+                    <span id="shop-level">Lv 1</span>
+                    <button class="shop-close-btn" onclick="closeShop()">CLOSE</button>
+                </div>
+            </div>
+            <div id="shop-content"></div>
+        </div>
+    </div>
+
+    <!-- TASKS OVERLAY -->
+    <div id="tasks-overlay">
+        <div class="tasks-container">
+            <div class="tasks-header">
+                <h2>TASKS</h2>
+                <button class="tasks-close-btn" onclick="closeTasks()">CLOSE</button>
+            </div>
+            <div id="tasks-content"></div>
+            <button class="refresh-tasks-btn" id="refresh-tasks-btn" onclick="refreshTasks()">REFRESH TASKS (complete all first)</button>
+        </div>
+    </div>
+
+    <!-- LEVEL UP NOTIFICATION -->
+    <div id="levelup-overlay">
+        <div class="levelup-text">LEVEL UP!</div>
+        <div class="levelup-level" id="levelup-level">Level 2</div>
+        <div class="levelup-unlocks" id="levelup-unlocks"></div>
+    </div>
+
+    <!-- MATCH REWARDS OVERLAY -->
+    <div id="rewards-overlay">
+        <div class="rewards-container">
+            <div class="rewards-title" id="rewards-title">MATCH COMPLETE</div>
+            <div id="rewards-breakdown"></div>
+            <div class="rewards-xp-bar"><div class="rewards-xp-fill" id="rewards-xp-fill" style="width:0%"></div></div>
+            <div class="rewards-xp-text" id="rewards-xp-text">0 / 100 XP</div>
+            <button class="rewards-continue-btn" id="rewards-continue-btn" onclick="closeRewards()">CONTINUE</button>
+        </div>
+    </div>
 
     <script>
         const socket = io(window.location.origin);
@@ -679,6 +885,9 @@
             document.getElementById('stat-kills').textContent = currentUser.kills;
             document.getElementById('stat-deaths').textContent = currentUser.deaths;
 
+            // Update XP bar
+            if (typeof updateMenuXPBar === 'function') updateMenuXPBar();
+
             refreshRooms();
         }
 
@@ -835,6 +1044,7 @@
         let roundEndTimer = 0;
         let gameEndOverlay = false;
         let gameEndWinner = '';
+        let pendingRewards = null;
 
         socket.on('roundEnd', (data) => {
             scores = data.scores;
@@ -855,11 +1065,23 @@
             scores = data.scores;
             gameEndOverlay = true;
             gameEndWinner = data.winner;
-            // Show for 5 seconds then leave
+            // Show game end overlay for 3 seconds, then show rewards screen
             setTimeout(() => {
                 gameEndOverlay = false;
-                leaveRoom();
-            }, 5000);
+                // Show rewards screen if we have pending rewards, otherwise just leave
+                if (pendingRewards) {
+                    showRewardsScreen();
+                } else {
+                    // Wait a moment for matchRewards to arrive
+                    setTimeout(() => {
+                        if (pendingRewards) {
+                            showRewardsScreen();
+                        } else {
+                            leaveRoom();
+                        }
+                    }, 1000);
+                }
+            }, 3000);
         });
 
         socket.on('playerMoved', (data) => {
@@ -1102,10 +1324,10 @@
                                 hitMarkerTimer = 200;
                                 spawnParticles(e.x, e.y + 1, e.z, '#ff4444', 8, 3, true);
                                 spawnDamageNumber(e.x, e.y + 1, e.z, weapon.damage);
-                                socket.emit('hit', { target: e.username, damage: weapon.damage });
+                                socket.emit('hit', { target: e.username, damage: weapon.damage, weaponKey: wKey });
                                 if (e.health <= 0) {
                                     e.alive = false;
-                                    socket.emit('kill', { target: e.username });
+                                    socket.emit('kill', { target: e.username, weaponKey: wKey });
                                     spawnParticles(e.x, e.y + 1, e.z, '#ff0000', 20, 5, true);
                                 }
                             }
@@ -1130,7 +1352,7 @@
                 };
 
                 bullets.push(bullet);
-                socket.emit('shoot', { x: bullet.x, y: bullet.y, z: bullet.z, vx: bullet.vx, vy: bullet.vy, vz: bullet.vz, damage: bullet.damage, color: bullet.color });
+                socket.emit('shoot', { x: bullet.x, y: bullet.y, z: bullet.z, vx: bullet.vx, vy: bullet.vy, vz: bullet.vz, damage: bullet.damage, color: bullet.color, weaponKey: wKey });
             }
         }
 
@@ -1352,10 +1574,10 @@
                             hitMarkerTimer = 200;
                             spawnParticles(e.x, e.y + 1, e.z, '#ff4444', 10, 3, true);
                             spawnDamageNumber(e.x, e.y + 1, e.z, b.damage);
-                            socket.emit('hit', { target: e.username, damage: b.damage });
+                            socket.emit('hit', { target: e.username, damage: b.damage, weaponKey: getActiveWeaponKey() });
                             if (e.health <= 0) {
                                 e.alive = false;
-                                socket.emit('kill', { target: e.username });
+                                socket.emit('kill', { target: e.username, weaponKey: getActiveWeaponKey() });
                                 spawnParticles(e.x, e.y + 1, e.z, '#ff0000', 25, 5, true);
                             }
                             return false;
@@ -2897,6 +3119,22 @@
             const secs = roundTimeLeft % 60;
             ctx.fillText(`${mins}:${secs.toString().padStart(2, '0')}`, W/2, scoreY + scoreH + 21);
 
+            // --- PLAYER LEVEL (top-left, below minimap) ---
+            if (currentUser) {
+                ctx.font = 'bold 11px "Segoe UI", sans-serif';
+                ctx.textAlign = 'left';
+                const lvText = 'Lv' + currentUser.level + ' ' + currentUser.username;
+                const lvW = ctx.measureText(lvText).width + 16;
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                roundRect(ctx, 15, 172, lvW, 20, 5);
+                ctx.fill();
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillText('Lv' + currentUser.level, 22, 186);
+                const lvNumW = ctx.measureText('Lv' + currentUser.level).width;
+                ctx.fillStyle = '#ddd';
+                ctx.fillText(' ' + currentUser.username, 22 + lvNumW, 186);
+            }
+
             // --- BOTTOM LEFT: Health Bar (Roblox Rivals style) ---
             ctx.textAlign = 'left';
             const hbX = 22, hbY = H - 68;
@@ -3730,6 +3968,306 @@
 
         // Gamepad movement input (applied in update loop)
         let gamepadMoveInput = { x: 0, y: 0 };
+
+        // ============== PROGRESSION SYSTEM ==============
+
+        // XP calculation helpers (mirror server)
+        function xpNeededForLevel(level) { return level * 100; }
+        function getTotalXPForLevel(level) {
+            let total = 0;
+            for (let l = 1; l < level; l++) total += xpNeededForLevel(l);
+            return total;
+        }
+        function getXPProgress() {
+            if (!currentUser) return { current: 0, needed: 100, pct: 0 };
+            const base = getTotalXPForLevel(currentUser.level);
+            const needed = xpNeededForLevel(currentUser.level);
+            const current = currentUser.xp - base;
+            return { current: Math.max(0, current), needed, pct: Math.min(100, (current / needed) * 100) };
+        }
+
+        function updateMenuXPBar() {
+            if (!currentUser) return;
+            const prog = getXPProgress();
+            document.getElementById('menu-xp-fill').style.width = prog.pct + '%';
+            document.getElementById('menu-xp-label').textContent = `${prog.current} / ${prog.needed} XP`;
+        }
+
+        // Weapon price data (mirror server)
+        const weaponPrices = {
+            AssaultRifle: { price: 0, levelReq: 1 }, Handgun: { price: 0, levelReq: 1 },
+            Fists: { price: 0, levelReq: 1 }, Grenade: { price: 0, levelReq: 1 },
+            SMG: { price: 5, levelReq: 1 }, Knife: { price: 5, levelReq: 1 },
+            Medkit: { price: 5, levelReq: 1 }, Shorty: { price: 5, levelReq: 1 },
+            Uzi: { price: 5, levelReq: 1 }, Slingshot: { price: 5, levelReq: 1 },
+            Daggers: { price: 5, levelReq: 1 }, Trowel: { price: 5, levelReq: 1 },
+            Shotgun: { price: 15, levelReq: 3 }, Bow: { price: 15, levelReq: 3 },
+            BurstRifle: { price: 15, levelReq: 3 }, Revolver: { price: 15, levelReq: 3 },
+            FlareGun: { price: 15, levelReq: 3 }, Katana: { price: 15, levelReq: 3 },
+            BattleAxe: { price: 15, levelReq: 3 }, Flashbang: { price: 15, levelReq: 3 },
+            FreezeRay: { price: 15, levelReq: 3 },
+            Sniper: { price: 30, levelReq: 5 }, Crossbow: { price: 30, levelReq: 5 },
+            RPG: { price: 30, levelReq: 5 }, Minigun: { price: 30, levelReq: 5 },
+            EnergyRifle: { price: 30, levelReq: 5 }, Gunblade: { price: 30, levelReq: 5 },
+            Chainsaw: { price: 30, levelReq: 5 }, Scythe: { price: 30, levelReq: 5 },
+            RiotShield: { price: 30, levelReq: 5 }, Molotov: { price: 30, levelReq: 5 },
+            Flamethrower: { price: 50, levelReq: 8 }, GrenadeLauncher: { price: 50, levelReq: 8 },
+            PaintballGun: { price: 50, levelReq: 8 }, Exogun: { price: 50, levelReq: 8 },
+            JumpPad: { price: 50, levelReq: 8 }
+        };
+
+        // Level requirements label
+        function getLevelTierName(levelReq) {
+            if (levelReq <= 1) return 'Starter';
+            if (levelReq <= 3) return 'Medium';
+            if (levelReq <= 5) return 'Expensive';
+            return 'Premium';
+        }
+
+        // ===== SHOP =====
+        function openShop() {
+            document.getElementById('shop-overlay').style.display = 'block';
+            socket.emit('getShop', (data) => {
+                document.getElementById('shop-keys').textContent = data.keys + ' Keys';
+                document.getElementById('shop-level').textContent = 'Lv ' + data.level;
+                renderShop(data.shop);
+            });
+        }
+
+        function closeShop() {
+            document.getElementById('shop-overlay').style.display = 'none';
+        }
+
+        function renderShop(shopData) {
+            const categories = { primary: [], secondary: [], melee: [], utility: [] };
+            for (const [key, item] of Object.entries(shopData)) {
+                const cat = item.type || 'primary';
+                if (categories[cat]) categories[cat].push({ key, ...item });
+            }
+            const catLabels = { primary: 'PRIMARY WEAPONS', secondary: 'SECONDARY WEAPONS', melee: 'MELEE WEAPONS', utility: 'UTILITY' };
+            let html = '';
+            for (const [cat, items] of Object.entries(categories)) {
+                if (items.length === 0) continue;
+                // Sort: owned first, then by price
+                items.sort((a, b) => (a.owned === b.owned ? a.price - b.price : a.owned ? -1 : 1));
+                html += `<div class="shop-category"><h3>${catLabels[cat]}</h3><div class="shop-grid">`;
+                for (const item of items) {
+                    let cls = 'shop-item';
+                    if (item.owned) cls += ' owned';
+                    else if (item.canAfford && item.meetsLevel) cls += ' affordable';
+                    else if (!item.meetsLevel) cls += ' locked';
+                    else cls += ' too-expensive';
+
+                    const wep = weapons[item.key];
+                    const color = wep ? wep.color : '#888';
+                    html += `<div class="${cls}">`;
+                    html += `<div class="shop-item-name"><span class="shop-item-dot" style="background:${color}"></span>${item.name}</div>`;
+                    html += `<div class="shop-item-type">${cat}</div>`;
+                    html += `<div class="shop-item-stats">DMG: ${item.damage || 0} | Rate: ${item.fireRate || 0}ms</div>`;
+                    html += `<div class="shop-item-price">`;
+                    if (item.owned) {
+                        html += `<span class="shop-item-owned">OWNED</span>`;
+                    } else {
+                        html += `<span class="price">${item.price} Keys</span>`;
+                        html += `<span class="level-req">Lv ${item.levelReq}+</span>`;
+                        const canBuy = item.canAfford && item.meetsLevel;
+                        html += `<button class="shop-buy-btn" ${canBuy ? '' : 'disabled'} onclick="buyWeapon('${item.key}')">BUY</button>`;
+                    }
+                    html += `</div></div>`;
+                }
+                html += `</div></div>`;
+            }
+            document.getElementById('shop-content').innerHTML = html;
+        }
+
+        function buyWeapon(weaponKey) {
+            socket.emit('buyWeapon', weaponKey, (result) => {
+                if (result.success) {
+                    currentUser.keys = result.keys;
+                    currentUser.inventory = result.inventory;
+                    document.getElementById('user-keys').textContent = currentUser.keys;
+                    openShop(); // Refresh shop
+                } else {
+                    alert(result.message);
+                }
+            });
+        }
+
+        // ===== TASKS =====
+        function openTasks() {
+            document.getElementById('tasks-overlay').style.display = 'block';
+            socket.emit('getTasks', (data) => {
+                renderTasks(data);
+            });
+        }
+
+        function closeTasks() {
+            document.getElementById('tasks-overlay').style.display = 'none';
+        }
+
+        function renderTasks(data) {
+            const tasks = data.tasks || [];
+            let html = '';
+            let allClaimed = true;
+            for (const task of tasks) {
+                if (!task.claimed) allClaimed = false;
+                const pct = task.target > 0 ? Math.min(100, (task.progress / task.target) * 100) : 0;
+                const isComplete = task.progress >= task.target;
+                let cls = 'task-card';
+                if (task.claimed) cls += ' claimed';
+                else if (isComplete) cls += ' completed';
+
+                const barColor = task.claimed ? '#555' : isComplete ? '#22c55e' : '#6366f1';
+
+                html += `<div class="${cls}">`;
+                html += `<div class="task-card-top">`;
+                html += `<span class="task-name">${task.name}</span>`;
+                html += `<span class="task-reward">${task.rewardKeys} Keys + ${task.rewardXP} XP</span>`;
+                html += `</div>`;
+                html += `<div class="task-desc">${task.description}</div>`;
+                html += `<div class="task-progress-bar"><div class="task-progress-fill" style="width:${pct}%;background:${barColor}"></div></div>`;
+                html += `<div style="display:flex;justify-content:space-between;align-items:center">`;
+                html += `<span class="task-progress-text">${task.progress}/${task.target}</span>`;
+                if (task.claimed) {
+                    html += `<span style="color:#555;font-size:12px">CLAIMED</span>`;
+                } else if (isComplete) {
+                    html += `<button class="task-claim-btn" onclick="claimTask('${task.id}')">CLAIM</button>`;
+                }
+                html += `</div></div>`;
+            }
+            document.getElementById('tasks-content').innerHTML = html;
+            document.getElementById('refresh-tasks-btn').disabled = !allClaimed;
+        }
+
+        function claimTask(taskId) {
+            socket.emit('claimTask', taskId, (result) => {
+                if (result.success) {
+                    currentUser.keys = result.keys;
+                    currentUser.xp = result.xp;
+                    currentUser.level = result.level;
+                    document.getElementById('user-keys').textContent = currentUser.keys;
+                    document.getElementById('user-level').textContent = currentUser.level;
+                    updateMenuXPBar();
+                    openTasks(); // Refresh
+                } else {
+                    alert(result.message);
+                }
+            });
+        }
+
+        function refreshTasks() {
+            socket.emit('refreshTasks', (result) => {
+                if (result.success) {
+                    currentUser.tasks = result.tasks;
+                    openTasks();
+                } else {
+                    alert(result.message);
+                }
+            });
+        }
+
+        // ===== LEVEL UP NOTIFICATION =====
+        socket.on('levelUp', (data) => {
+            currentUser.level = data.level;
+            currentUser.keys = data.keys;
+            currentUser.xp = data.xp;
+            document.getElementById('user-level').textContent = data.level;
+            document.getElementById('user-keys').textContent = data.keys;
+            updateMenuXPBar();
+
+            // Show level up overlay
+            const overlay = document.getElementById('levelup-overlay');
+            document.getElementById('levelup-level').textContent = 'Level ' + data.level;
+
+            // Find newly unlocked weapons
+            const unlocked = [];
+            for (const [key, info] of Object.entries(weaponPrices)) {
+                if (info.levelReq === data.level) {
+                    const wep = weapons[key];
+                    unlocked.push(wep ? wep.name : key);
+                }
+            }
+            if (unlocked.length > 0) {
+                document.getElementById('levelup-unlocks').textContent = 'New weapons available: ' + unlocked.join(', ');
+            } else {
+                document.getElementById('levelup-unlocks').textContent = '';
+            }
+
+            overlay.classList.add('active');
+            setTimeout(() => { overlay.classList.remove('active'); }, 3500);
+        });
+
+        // ===== MATCH REWARDS =====
+        socket.on('matchRewards', (data) => {
+            pendingRewards = data;
+            // Update local user data
+            currentUser.xp = data.newXP;
+            currentUser.keys = data.newKeys;
+            currentUser.level = data.newLevel;
+            if (data.tasks) currentUser.tasks = data.tasks;
+        });
+
+        function showRewardsScreen() {
+            if (!pendingRewards) return;
+            const data = pendingRewards;
+
+            const overlay = document.getElementById('rewards-overlay');
+            document.getElementById('rewards-title').textContent = data.isWinner ? 'VICTORY!' : 'MATCH COMPLETE';
+            document.getElementById('rewards-title').style.color = data.isWinner ? '#22c55e' : '#fbbf24';
+
+            let bhtml = '';
+            bhtml += `<div class="rewards-row"><span class="label">Match Participation</span><span class="value">+${data.breakdown.participation.xp} XP</span></div>`;
+            bhtml += `<div class="rewards-row"><span class="label">Participation Keys</span><span class="value keys">+${data.breakdown.participation.keys} Keys</span></div>`;
+            if (data.breakdown.roundWins.xp > 0) {
+                bhtml += `<div class="rewards-row"><span class="label">Round Wins</span><span class="value">+${data.breakdown.roundWins.xp} XP</span></div>`;
+            }
+            if (data.breakdown.kills.xp > 0) {
+                bhtml += `<div class="rewards-row"><span class="label">Kills</span><span class="value">+${data.breakdown.kills.xp} XP</span></div>`;
+            }
+            if (data.breakdown.matchWin.xp > 0) {
+                bhtml += `<div class="rewards-row"><span class="label">Match Win Bonus</span><span class="value">+${data.breakdown.matchWin.xp} XP</span></div>`;
+                bhtml += `<div class="rewards-row"><span class="label">Win Keys</span><span class="value keys">+${data.breakdown.matchWin.keys} Keys</span></div>`;
+            }
+            bhtml += `<div class="rewards-row" style="border-top:2px solid #444;margin-top:8px;padding-top:12px"><span class="label" style="color:#fff;font-weight:bold">TOTAL XP</span><span class="value" style="font-size:18px">+${data.xpEarned}</span></div>`;
+            bhtml += `<div class="rewards-row"><span class="label" style="color:#fff;font-weight:bold">TOTAL KEYS</span><span class="value keys" style="font-size:18px">+${data.keysEarned}</span></div>`;
+
+            document.getElementById('rewards-breakdown').innerHTML = bhtml;
+
+            // XP bar
+            const base = getTotalXPForLevel(data.newLevel);
+            const needed = xpNeededForLevel(data.newLevel);
+            const current = data.newXP - base;
+            const pct = Math.min(100, (current / needed) * 100);
+            document.getElementById('rewards-xp-fill').style.width = '0%';
+            document.getElementById('rewards-xp-text').textContent = `${Math.max(0,current)} / ${needed} XP to Level ${data.newLevel + 1}`;
+
+            overlay.classList.add('active');
+
+            // Animate XP bar
+            setTimeout(() => {
+                document.getElementById('rewards-xp-fill').style.width = pct + '%';
+            }, 300);
+
+            pendingRewards = null;
+        }
+
+        function closeRewards() {
+            document.getElementById('rewards-overlay').classList.remove('active');
+            // Now actually go to menu
+            actuallyLeaveRoom();
+        }
+
+        // ===== REWARDS FLOW HELPER =====
+        function actuallyLeaveRoom() {
+            socket.emit('leaveRoom');
+            currentRoom = null;
+            document.getElementById('room-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'none';
+            hideTouchControls();
+            gameState = 'menu';
+            if (roundTimerInterval) clearInterval(roundTimerInterval);
+            showMenu();
+        }
 
         // ============== PATCHED GAME LOOP ==============
         gameLoop();
