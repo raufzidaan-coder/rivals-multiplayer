@@ -830,13 +830,36 @@
             initAmmo();
         });
 
+        let roundEndOverlay = false;
+        let roundEndWinner = '';
+        let roundEndTimer = 0;
+        let gameEndOverlay = false;
+        let gameEndWinner = '';
+
         socket.on('roundEnd', (data) => {
             scores = data.scores;
+            roundEndOverlay = true;
+            roundEndWinner = data.winner;
+            roundEndTimer = 3;
+            // Countdown the overlay
+            const countDown = setInterval(() => {
+                roundEndTimer--;
+                if (roundEndTimer <= 0) {
+                    clearInterval(countDown);
+                    roundEndOverlay = false;
+                }
+            }, 1000);
         });
 
         socket.on('gameEnd', (data) => {
-            alert(`${data.winner.toUpperCase()} WINS! Final Score: ${data.scores.red} - ${data.scores.blue}`);
-            leaveRoom();
+            scores = data.scores;
+            gameEndOverlay = true;
+            gameEndWinner = data.winner;
+            // Show for 5 seconds then leave
+            setTimeout(() => {
+                gameEndOverlay = false;
+                leaveRoom();
+            }, 5000);
         });
 
         socket.on('playerMoved', (data) => {
@@ -3309,12 +3332,101 @@
             ctx.closePath();
         }
 
+        // ============== ROUND/GAME END OVERLAYS ==============
+        function renderOverlays() {
+            // Round end overlay
+            if (roundEndOverlay) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const winColor = roundEndWinner === 'red' ? '#ff4444' : '#4488ff';
+                const winText = roundEndWinner.toUpperCase() + ' WINS ROUND';
+
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                // Big winner text
+                ctx.fillStyle = winColor;
+                ctx.font = 'bold 60px Segoe UI';
+                ctx.shadowColor = winColor;
+                ctx.shadowBlur = 30;
+                ctx.fillText(winText, canvas.width / 2, canvas.height / 2 - 40);
+                ctx.shadowBlur = 0;
+
+                // Score
+                ctx.font = 'bold 80px Segoe UI';
+                ctx.fillStyle = '#ff4444';
+                ctx.fillText(scores.red, canvas.width / 2 - 60, canvas.height / 2 + 60);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 40px Segoe UI';
+                ctx.fillText('-', canvas.width / 2, canvas.height / 2 + 60);
+                ctx.fillStyle = '#4488ff';
+                ctx.font = 'bold 80px Segoe UI';
+                ctx.fillText(scores.blue, canvas.width / 2 + 60, canvas.height / 2 + 60);
+
+                // Next round countdown
+                ctx.fillStyle = '#aaaaaa';
+                ctx.font = '24px Segoe UI';
+                ctx.fillText('Next round in ' + Math.max(1, roundEndTimer) + '...', canvas.width / 2, canvas.height / 2 + 130);
+
+                // First to 5 indicator
+                ctx.fillStyle = '#666666';
+                ctx.font = '18px Segoe UI';
+                ctx.fillText('First to 5', canvas.width / 2, canvas.height / 2 + 165);
+
+                ctx.textAlign = 'left';
+            }
+
+            // Game end overlay
+            if (gameEndOverlay) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const winColor = gameEndWinner === 'red' ? '#ff4444' : '#4488ff';
+                const winText = gameEndWinner.toUpperCase() + ' TEAM WINS!';
+
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                // Trophy
+                ctx.font = '80px Segoe UI';
+                ctx.fillText('🏆', canvas.width / 2, canvas.height / 2 - 100);
+
+                // Winner text
+                ctx.fillStyle = winColor;
+                ctx.font = 'bold 70px Segoe UI';
+                ctx.shadowColor = winColor;
+                ctx.shadowBlur = 40;
+                ctx.fillText(winText, canvas.width / 2, canvas.height / 2);
+                ctx.shadowBlur = 0;
+
+                // Final score
+                ctx.font = 'bold 90px Segoe UI';
+                ctx.fillStyle = '#ff4444';
+                ctx.fillText(scores.red, canvas.width / 2 - 70, canvas.height / 2 + 100);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 50px Segoe UI';
+                ctx.fillText('-', canvas.width / 2, canvas.height / 2 + 100);
+                ctx.fillStyle = '#4488ff';
+                ctx.font = 'bold 90px Segoe UI';
+                ctx.fillText(scores.blue, canvas.width / 2 + 70, canvas.height / 2 + 100);
+
+                // Returning to lobby
+                ctx.fillStyle = '#aaaaaa';
+                ctx.font = '22px Segoe UI';
+                ctx.fillText('Returning to lobby...', canvas.width / 2, canvas.height / 2 + 170);
+
+                ctx.textAlign = 'left';
+            }
+        }
+
         // ============== GAME LOOP ==============
         function gameLoop() {
             pollGamepad();
             update();
             if (gameState === 'playing') {
                 render();
+                renderOverlays();
             }
             requestAnimationFrame(gameLoop);
         }

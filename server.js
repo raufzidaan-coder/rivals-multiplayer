@@ -358,33 +358,37 @@ io.on('connection', (socket) => {
     // Kill event
     socket.on('kill', (data) => {
         if (!currentRoom) return;
-        
+
+        // Mark player as dead
+        const victim = currentRoom.players.find(p => p.username === data.target);
+        if (victim) victim.alive = false;
+
         io.to(currentRoom.id).emit('playerKilled', {
             victim: data.target,
             killer: currentUser.username
         });
-        
+
         // Check win condition
         const redAlive = currentRoom.players.filter(p => p.team === 'red' && p.alive).length;
         const blueAlive = currentRoom.players.filter(p => p.team === 'blue' && p.alive).length;
-        
+
         if (redAlive === 0) {
             currentRoom.scores.blue++;
-            io.to(currentRoom.id).emit('roundEnd', { winner: 'blue', scores: currentRoom.scores });
-            
+            io.to(currentRoom.id).emit('roundEnd', { winner: 'blue', scores: currentRoom.scores, round: currentRoom.round });
+
             if (currentRoom.scores.blue >= 5) {
-                endGame(currentRoom, 'blue');
+                setTimeout(() => endGame(currentRoom, 'blue'), 3000);
             } else {
-                startRound(currentRoom);
+                setTimeout(() => startRound(currentRoom), 3000);
             }
         } else if (blueAlive === 0) {
             currentRoom.scores.red++;
-            io.to(currentRoom.id).emit('roundEnd', { winner: 'red', scores: currentRoom.scores });
-            
+            io.to(currentRoom.id).emit('roundEnd', { winner: 'red', scores: currentRoom.scores, round: currentRoom.round });
+
             if (currentRoom.scores.red >= 5) {
-                endGame(currentRoom, 'red');
+                setTimeout(() => endGame(currentRoom, 'red'), 3000);
             } else {
-                startRound(currentRoom);
+                setTimeout(() => startRound(currentRoom), 3000);
             }
         }
     });
