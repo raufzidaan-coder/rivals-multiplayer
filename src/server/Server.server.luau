@@ -28,6 +28,8 @@ function Server.new()
     self.Lobby = RivalsCore.LobbySystem.new()
     self.GameMode = nil
     self.Players = {}
+    self.PlayerCombat = {} -- [Player] = CombatSystem instance (server-authoritative)
+    self.LastFireTime = {} -- [Player] = tick() of last fire (rate limit floor)
     self.DataManager = RivalsCore.PlayerDataManager.new()
     self.Abilities = RivalsCore.AbilitySystem.new()
     self.RemoteEvents = self:CreateRemoteEvents()
@@ -64,6 +66,10 @@ function Server:CreateRemoteEvents()
     Events.KillFeed = Instance.new("RemoteEvent")
     Events.KillFeed.Name = "KillFeed"
     Events.KillFeed.Parent = ReplicatedStorage
+
+    Events.FireWeapon = Instance.new("RemoteEvent")
+    Events.FireWeapon.Name = "FireWeapon"
+    Events.FireWeapon.Parent = ReplicatedStorage
 
     return Events
 end
@@ -107,9 +113,82 @@ function Server:OnCharacterAdded(Player, Character)
         end)
     end
 
+    -- Server-authoritative combat state. Re-created each character spawn so the
+    -- new Character/Humanoid references are bound. Old entries are GC'd.
+    self.PlayerCombat[Player] = RivalsCore.CombatSystem.new(Character)
+
     task.delay(0.1, function()
         self:SpawnInLobby(Player)
     end)
+end
+
+-- Server-authoritative shot pipeline. Client sends aim direction + weapon name;
+-- server re-raycasts from the player's HumanoidRootPart (not from a client-supplied
+-- origin — that would let cheaters spoof position), looks up weapon stats from
+-- the canonical WEAPONS table, rate-limits by WeaponData.FireRate, applies damage
+-- via the victim's server-side CombatSystem.
+function Server:ProcessFire(ShooterPlayer, WeaponName, AimDirection)
+    -- Input shape validation: keep the surface tight.
+    if type(WeaponName) ~= "string" or #WeaponName > 32 then
+        return
+    end
+    if typeof(AimDirection) ~= "Vector3" then
+        return
+    end
+    if AimDirection.Magnitude < 0.5 or AimDirection.Magnitude > 2 then
+        return -- direction must be roughly unit
+    end
+
+    local WeaponData = RivalsCore.WEAPONS[WeaponName]
+    if not WeaponData then
+        return
+    end
+
+    -- Rate limit: server-side floor at WeaponData.FireRate to drop spam.
+    local now = tick()
+    local last = self.LastFireTime[ShooterPlayer] or 0
+    if (now - last) < WeaponData.FireRate then
+        return
+    end
+    self.LastFireTime[ShooterPlayer] = now
+
+    local ShooterChar = ShooterPlayer.Character
+    if not (ShooterChar and ShooterChar:FindFirstChild("HumanoidRootPart")) then
+        return
+    end
+
+    local RayOrigin = ShooterChar.HumanoidRootPart.Position
+    local Params = RaycastParams.new()
+    Params.FilterDescendantInstances = { ShooterChar }
+    Params.FilterType = Enum.RaycastFilterType.Exclude
+
+    local Result = workspace:Raycast(RayOrigin, AimDirection.Unit * WeaponData.Range, Params)
+    if not Result then
+        return
+    end
+
+    local HitCharacter = Result.Instance:FindFirstAncestorWhichIsA("Model")
+    if not HitCharacter or HitCharacter == ShooterChar then
+        return
+    end
+
+    local Victim = Players:GetPlayerFromCharacter(HitCharacter)
+    if not Victim then
+        return
+    end
+
+    local victimCombat = self.PlayerCombat[Victim]
+    if not victimCombat then
+        return
+    end
+
+    local _, IsHeadshot = victimCombat:TakeDamage(WeaponData.Damage, ShooterPlayer, Result.Instance)
+
+    -- Award headshot stat on shooter
+    if IsHeadshot then
+        local Data = self.DataManager:GetData(ShooterPlayer)
+        Data.Headshots = (Data.Headshots or 0) + 1
+    end
 end
 
 function Server:SpawnInLobby(Player)
@@ -138,6 +217,10 @@ function Server:SetupRemoteListeners()
 
     self.RemoteEvents.SwitchWeapon.OnServerEvent:Connect(function(Player, Slot)
         self:SwitchPlayerWeapon(Player, Slot)
+    end)
+
+    self.RemoteEvents.FireWeapon.OnServerEvent:Connect(function(Player, WeaponName, AimDirection)
+        self:ProcessFire(Player, WeaponName, AimDirection)
     end)
 
     self.RemoteEvents.UseAbility.OnServerEvent:Connect(function(Player, AbilityName)
@@ -256,6 +339,8 @@ function Server:Start()
     Players.PlayerRemoving:Connect(function(Player)
         self.Lobby:LeaveQueue(Player)
         self.Players[Player] = nil
+        self.PlayerCombat[Player] = nil
+        self.LastFireTime[Player] = nil
         self.Abilities:ClearPlayer(Player)
     end)
 

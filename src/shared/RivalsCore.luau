@@ -2014,36 +2014,27 @@ function ClientController:Update(DeltaTime)
 end
 
 function ClientController:ProcessShot()
-    local CameraCFrame = self.Camera.CFrame
-    local AimDirection = self.Weapon:GetAimDirection(CameraCFrame)
-
-    local RayOrigin = self.Camera.CFrame.Position
-    local RayDirection = AimDirection
-    local WeaponData = self.Weapon.WeaponData
-
-    local RaycastParams = RaycastParams.new()
-    RaycastParams.FilterDescendantInstances = { self.Character }
-    RaycastParams.FilterType = Enum.RaycastFilterType.Exclude
-
-    local RaycastResult = workspace:Raycast(RayOrigin, RayDirection * WeaponData.Range, RaycastParams)
-
-    if RaycastResult then
-        local HitPart = RaycastResult.Instance
-        local HitCharacter = HitPart:FindFirstAncestorWhichIsA("Model")
-
-        if HitCharacter and HitCharacter ~= self.Character then
-            local HitPlayer = Players:GetPlayerFromCharacter(HitCharacter)
-            if HitPlayer then
-                local _Damage, IsHeadshot = self.Combat:TakeDamage(WeaponData.Damage, self.Character, HitPart)
-
-                if IsHeadshot then
-                    local DataManager = PlayerDataManager.new()
-                    local Data = DataManager:GetData(self.Player)
-                    Data.Headshots = Data.Headshots + 1
-                end
-            end
-        end
+    -- Server-authoritative damage: client sends aim direction + weapon name,
+    -- server re-raycasts from the shooter's HumanoidRootPart and validates.
+    -- Client-side raycast here is only for visuals (tracer/muzzle flash) —
+    -- never apply damage from this side.
+    if not (self.Weapon and self.Camera) then
+        return
     end
+
+    local AimDirection = self.Weapon:GetAimDirection(self.Camera.CFrame)
+    local FireWeapon = ReplicatedStorage:FindFirstChild("FireWeapon")
+    if FireWeapon then
+        FireWeapon:FireServer(self.Weapon.WeaponName, AimDirection)
+    end
+
+    -- Optional: client-side visual raycast (tracer line) — kept around for the
+    -- HUD/cosmetics layer to consume; does not touch any state.
+    local Params = RaycastParams.new()
+    Params.FilterDescendantInstances = { self.Character }
+    Params.FilterType = Enum.RaycastFilterType.Exclude
+    local Result = workspace:Raycast(self.Camera.CFrame.Position, AimDirection * self.Weapon.WeaponData.Range, Params)
+    self.LastShotResult = Result -- HUD can read this to draw a tracer or hit marker.
 end
 
 function ClientController:UpdateCamera()
