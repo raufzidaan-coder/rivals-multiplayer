@@ -22,7 +22,9 @@ return TestRunner.describe("MapSystem", function(it)
         local f = workspace:FindFirstChild("Arena")
         expect.is_a(f, "Folder")
         expect.truthy(f:FindFirstChild("Floor"))
-        if f then f:Destroy() end
+        if f then
+            f:Destroy()
+        end
     end)
 
     it("CreateWarehouse creates a 'Warehouse' folder", function(expect)
@@ -30,7 +32,9 @@ return TestRunner.describe("MapSystem", function(it)
         m:CreateWarehouse()
         local f = workspace:FindFirstChild("Warehouse")
         expect.is_a(f, "Folder")
-        if f then f:Destroy() end
+        if f then
+            f:Destroy()
+        end
     end)
 
     it("LoadMap returns false for unregistered map (preserves current)", function(expect)
@@ -41,7 +45,9 @@ return TestRunner.describe("MapSystem", function(it)
 
     it("DeleteMap is safe on non-existent map", function(expect)
         local m = MapSystem.new()
-        local ok = pcall(function() m:DeleteMap("NonexistentMap") end)
+        local ok = pcall(function()
+            m:DeleteMap("NonexistentMap")
+        end)
         expect.truthy(ok)
     end)
 end)

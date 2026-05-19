@@ -328,7 +328,7 @@ Extends section B. Run after the basic sync flow is healthy.
 - `[ ]` **`rojo build --watch`** — Run `tools\rojo.exe build default.project.json -o rivals.rbxlx --watch`, edit `src/shared/RivalsCore.luau`. — Expects: `rivals.rbxlx` mtime updates within ~1s of each save.
 - `[ ]` **`rojo sourcemap --watch`** — Run `tools\rojo.exe sourcemap default.project.json --include-non-scripts --output sourcemap.json --watch`, add/remove a file. — Expects: `sourcemap.json` regenerates on every change.
 - `[ ]` **`rojo plugin install` overwrites Studio plugin** — Back up `tools/Rojo-Plugin.rbxm`, run `tools\rojo.exe plugin install`. — Expects: Fresh `Rojo.rbxm` written to `%LOCALAPPDATA%\Roblox\Plugins\`. Does NOT touch `tools/Rojo-Plugin.rbxm` on disk.
-- `[ ]` **Name-collision build error** — Add `src/shared/Settings/init.luau` while `src/shared/Settings.luau` still exists. Run `tools\rojo.exe build default.project.json -o conflict.rbxlx`. — Expects: build fails with collision error citing both sources. Remove the folder to recover.
+- `[ ]` **Name-collision build error** — Add `src/shared/Settings/init.luau` while `src/shared/Settings.luau` still exists. Run `tools\rojo.exe build default.project.json -o conflict.rbxlx`. — Expects: build either fails with a collision error citing both sources OR silently picks the folder over the sibling .luau (Rojo 7.6.1 currently does the latter — flag this as undocumented behavior). Remove the folder to recover.
 - `[ ]` **`rojo upload --asset-id` exists** — Run `tools\rojo.exe upload default.project.json --asset-id 0 --cookie_from_environment` (no valid cookie). — Expects: command exists, fails with auth/asset error (not "unknown subcommand").
 - `[ ]` **Argon rejects this project** — Run `~/.argon/bin/argon.exe serve default.project.json`. — Expects: Argon errors because it requires its own schema. Confirms why the project stays Rojo-only.
 
@@ -341,7 +341,7 @@ Extends section E with the actual Socket.io flows (`server.js` is a 922-line Soc
 - `[ ]` **Clean `npm install`** — Delete `node_modules`, run `npm install`. — Expects: completes without errors, `express` and `socket.io` both present.
 - `[ ]` **Socket.io handshake endpoint** — `curl "http://localhost:3001/socket.io/?EIO=4&transport=polling"` — Expects: 200 with engine.io handshake JSON (`sid`, `upgrades:["websocket"]`).
 - `[ ]` **WebSocket upgrade** — Open `http://localhost:3001` in Chrome, check DevTools Network → WS for `/socket.io/?EIO=4&transport=websocket` 101 Switching Protocols frame.
-- `[ ]` **No REST `/api/*` endpoints** — `curl -i http://localhost:3001/api/users` — Expects: returns `index.html` (200) via SPA fallback, NOT JSON 404. All game flow is Socket.io events.
+- `[ ]` **No REST `/api/*` endpoints** — `curl -i http://localhost:3001/api/users` — Expects: returns HTTP 404 (Express default — `server.js` does not implement a SPA catch-all). Confirms no accidental REST surface.
 - `[ ]` **Register via Socket.io** — In browser console: `const s=io(); s.emit('register',{username:'test_'+Date.now(),password:'pw'},console.log)` — Expects: `{success:true, user:{level:1, keys:10, inventory:[AssaultRifle,Handgun,Fists,Grenade], tasks:[3 items]...}}`; `users.json` grows.
 - `[ ]` **Duplicate-username rejection** — Emit `register` twice with same username. — Expects: second callback returns `{success:false, message:'Username taken'}`.
 - `[ ]` **Login existing user** — Emit `login` with seed user `{username:'suiiiiiiib90', password:'67forlife'}`. — Expects: `{success:true, user:{...}}`; wrong password returns `Invalid credentials`.
@@ -401,7 +401,7 @@ Multi-server chains. Don't run until the individual MCPs (section H) are smoke-t
 
 ## Q. Performance & stress
 
-Localhost MCP baseline overhead is ~20-40ms. Record wall-clock per call.
+Localhost MCP baseline overhead is ~2-3s per call via the boshyxd Studio plugin (HTTP polling loop is single-threaded). The 20-40ms figure quoted in older boshyxd docs assumes WebSocket transport which this plugin does not currently use. Batch MCP work into single execute_luau payloads where possible to amortize. Record wall-clock per call.
 
 - `[ ]` **Mass create 500 parts** — Ask: "Use `mass_create_objects` to spawn 500 Parts under `workspace.StressTest` at random positions in a 200-stud cube." — Expects: < 5s; all 500 present via `get_instance_children`.
 - `[ ]` **Mass set property on 500 parts** — Ask: "Set Transparency=0.5 and Material=Neon on every Part under `workspace.StressTest`." — Expects: < 3s; single round-trip.
@@ -413,7 +413,7 @@ Localhost MCP baseline overhead is ~20-40ms. Record wall-clock per call.
 - `[ ]` **Screenshot leak check** — Ask: "Call `capture_screenshot` 60× with ~1s spacing; report Studio RAM before/after via `execute_luau collectgarbage('count')`." — Expects: < 50 MB net growth; no stall.
 - `[ ]` **Bulk find_and_replace** — Ask: "`find_and_replace_in_scripts` across all 6 Rivals scripts: replace `print(` with `warn(`, then revert." — Expects: < 3s each pass; no file corruption.
 - `[ ]` **8-NPC playtest framerate** — Ask: "`start_playtest`, spawn 8 NPC characters, run `character_navigation` on each, `capture_screenshot` every 2s for 20s; estimate FPS." — Expects: server FPS ≥ 30.
-- `[ ]` **MCP HTTP round-trip floor** — Ask: "Run `get_services` 20× sequentially; report min/median/max latency." — Expects: median < 50ms on localhost; p99 < 150ms.
+- `[ ]` **MCP HTTP round-trip floor** — Ask: "Run `get_services` 20× sequentially; report min/median/max latency." — Expects: median < 3s on localhost; p99 < 7s (boshyxd plugin polling loop). Test fails with the older < 50ms expectation; document the plugin bottleneck.
 - `[ ]` **Concurrent tool calls** — Ask: "In one turn, issue `get_instance_children`, `get_services`, `get_output_log` in parallel; report whether they overlapped or serialized." — Expects: parallel dispatch from Claude; document if Studio plugin queues them (likely single-threaded).
 
 ---

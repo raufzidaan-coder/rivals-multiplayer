@@ -5,7 +5,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-local ServerStorage = game:GetService("ServerStorage")
 
 -- Studio dev convenience: ensure HttpService is enabled at boot so the MCP plugin,
 -- analytics, and any HttpService:RequestAsync call works without needing the
@@ -30,6 +29,7 @@ function Server.new()
     self.GameMode = nil
     self.Players = {}
     self.DataManager = RivalsCore.PlayerDataManager.new()
+    self.Abilities = RivalsCore.AbilitySystem.new()
     self.RemoteEvents = self:CreateRemoteEvents()
     return self
 end
@@ -139,11 +139,45 @@ function Server:SetupRemoteListeners()
     self.RemoteEvents.SwitchWeapon.OnServerEvent:Connect(function(Player, Slot)
         self:SwitchPlayerWeapon(Player, Slot)
     end)
+
+    self.RemoteEvents.UseAbility.OnServerEvent:Connect(function(Player, AbilityName)
+        -- AbilityName is client-supplied; cap to known string keys to avoid table-key spam.
+        if type(AbilityName) ~= "string" or #AbilityName > 32 then
+            return
+        end
+        local ok, reason = self.Abilities:Use(Player, AbilityName)
+        if not ok then
+            -- Silent rejection on cooldown; warn for unknown abilities so devs notice during playtest.
+            if reason == "unknown ability" then
+                warn(string.format("[Server] UseAbility rejected: %q (%s)", AbilityName, reason))
+            end
+        end
+    end)
+end
+
+-- Call this once a GameModeManager is active for the current match. Subscribes
+-- to its phase events and rebroadcasts via the UpdateMatchState RemoteEvent so
+-- clients can update HUD timers, score, phase text, etc.
+function Server:WireGameMode(gameMode)
+    self.GameMode = gameMode
+    local update = self.RemoteEvents.UpdateMatchState
+    gameMode:OnEvent("RoundStart", function(roundNumber)
+        update:FireAllClients("RoundStart", {
+            round = roundNumber,
+            timeRemaining = gameMode.State.TimeRemaining,
+            team1Score = gameMode.State.Team1Score,
+            team2Score = gameMode.State.Team2Score,
+        })
+    end)
+    gameMode:OnEvent("RoundEnd", function(winnerTeam, t1, t2)
+        update:FireAllClients("RoundEnd", { winner = winnerTeam, team1Score = t1, team2Score = t2 })
+    end)
+    gameMode:OnEvent("MatchEnd", function(winnerTeam, t1, t2)
+        update:FireAllClients("MatchEnd", { winner = winnerTeam, team1Score = t1, team2Score = t2 })
+    end)
 end
 
 function Server:JoinQueue(Player, QueueType)
-    local Data = self.DataManager:GetData(Player)
-
     if QueueType == "Ranked" and not self.DataManager:CanPlayRanked(Player) then
         return false
     end
@@ -160,11 +194,14 @@ function Server:SetPlayerReady(Player, IsReady)
 end
 
 function Server:SwitchPlayerWeapon(Player, Slot)
+    -- Validate slot is an integer in [1, 4] (slots = Primary, Secondary, Melee, Utility).
+    if type(Slot) ~= "number" or Slot < 1 or Slot > 4 or Slot % 1 ~= 0 then
+        return false
+    end
+
     if not self.Players[Player] then
         self.Players[Player] = {}
     end
-
-    local Data = self.DataManager:GetData(Player)
 
     if not self.Players[Player].WeaponSwitches then
         self.Players[Player].WeaponSwitches = 0
@@ -173,6 +210,8 @@ function Server:SwitchPlayerWeapon(Player, Slot)
     if self.Players[Player].WeaponSwitches >= 2 then
         return false
     end
+
+    self.Players[Player].CurrentSlot = Slot
 
     self.Players[Player].WeaponSwitches = self.Players[Player].WeaponSwitches + 1
     return true
@@ -217,6 +256,7 @@ function Server:Start()
     Players.PlayerRemoving:Connect(function(Player)
         self.Lobby:LeaveQueue(Player)
         self.Players[Player] = nil
+        self.Abilities:ClearPlayer(Player)
     end)
 
     for _, Player in ipairs(Players:GetPlayers()) do

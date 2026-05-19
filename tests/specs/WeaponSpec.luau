@@ -60,7 +60,7 @@ return TestRunner.describe("WeaponSystem", function(it)
             expect.truthy(w:IsMelee())
             char:Destroy()
         else
-            expect.truthy(true)  -- skipped — Fists weapon not defined
+            expect.truthy(true) -- skipped — Fists weapon not defined
         end
     end)
 

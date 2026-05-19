@@ -33,7 +33,9 @@ return TestRunner.describe("GameModeManager", function(it)
     it("OnEvent + FireEvent dispatch works", function(expect)
         local gm = RivalsCore.GameModeManager.new()
         local hit = false
-        gm:OnEvent("TestPing", function() hit = true end)
+        gm:OnEvent("TestPing", function()
+            hit = true
+        end)
         gm:FireEvent("TestPing")
         expect.truthy(hit)
     end)

@@ -146,8 +146,8 @@ function SettingsUI:CreateMenu()
     ScreenGui.Parent = self.Player:FindFirstChild("PlayerGui")
 
     local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.new(0.8, 0, 0.8, 0)
-    MainFrame.Position = UDim2.new(0.1, 0, 0.1, 0)
+    MainFrame.Size = UDim2.fromScale(0.8, 0.8)
+    MainFrame.Position = UDim2.fromScale(0.1, 0.1)
     MainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
     MainFrame.BorderSizePixel = 0
     MainFrame.Parent = ScreenGui
@@ -163,7 +163,7 @@ function SettingsUI:CreateMenu()
     Title.Parent = MainFrame
 
     local Tabs = { "General", "Controls", "Graphics", "Audio" }
-    local TabButtons = {}
+    local _TabButtons = {} -- placeholder for future tab-switching wire-up
 
     for i, TabName in ipairs(Tabs) do
         local TabButton = Instance.new("TextButton")
@@ -177,18 +177,18 @@ function SettingsUI:CreateMenu()
         TabButton.TextSize = 16
         TabButton.Parent = MainFrame
 
-        table.insert(TabButtons, TabButton)
+        table.insert(_TabButtons, TabButton)
     end
 
     local ContentFrame = Instance.new("ScrollingFrame")
     ContentFrame.Size = UDim2.new(1, -20, 1, -100)
-    ContentFrame.Position = UDim2.new(0, 10, 0, 90)
+    ContentFrame.Position = UDim2.fromOffset(10, 90)
     ContentFrame.BackgroundTransparency = 1
     ContentFrame.ScrollBarThickness = 6
     ContentFrame.Parent = MainFrame
 
     local CloseButton = Instance.new("TextButton")
-    CloseButton.Size = UDim2.new(0, 40, 0, 40)
+    CloseButton.Size = UDim2.fromOffset(40, 40)
     CloseButton.Position = UDim2.new(1, -50, 0, 5)
     CloseButton.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
     CloseButton.BorderSizePixel = 0
@@ -222,7 +222,7 @@ function SettingsUI:CreateSlider(Parent, Label, Min, Max, Value, OnChanged)
 
     local ValueText = Instance.new("TextLabel")
     ValueText.Size = UDim2.new(0.1, 0, 0, 20)
-    ValueText.Position = UDim2.new(0.9, 0, 0, 0)
+    ValueText.Position = UDim2.fromScale(0.9, 0)
     ValueText.BackgroundTransparency = 1
     ValueText.Text = tostring(Value)
     ValueText.TextColor3 = Color3.new(0.6, 0.6, 0.6)
@@ -238,13 +238,13 @@ function SettingsUI:CreateSlider(Parent, Label, Min, Max, Value, OnChanged)
     SliderBack.Parent = Container
 
     local SliderFill = Instance.new("Frame")
-    SliderFill.Size = UDim2.new((Value - Min) / (Max - Min), 0, 1, 0)
+    SliderFill.Size = UDim2.fromScale((Value - Min) / (Max - Min), 1)
     SliderFill.BackgroundColor3 = Color3.new(0, 0.7, 1)
     SliderFill.BorderSizePixel = 0
     SliderFill.Parent = SliderBack
 
     local SliderButton = Instance.new("TextButton")
-    SliderButton.Size = UDim2.new(0, 16, 0, 16)
+    SliderButton.Size = UDim2.fromOffset(16, 16)
     SliderButton.Position = UDim2.new((Value - Min) / (Max - Min), -8, 0.5, -8)
     SliderButton.BackgroundColor3 = Color3.new(1, 1, 1)
     SliderButton.BorderSizePixel = 0
@@ -265,7 +265,7 @@ function SettingsUI:CreateSlider(Parent, Label, Min, Max, Value, OnChanged)
             local Mouse = game.Players.LocalPlayer:GetMouse()
             local RelativeX = (Mouse.X - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X
             local NewValue = math.clamp(Min + (Max - Min) * RelativeX, Min, Max)
-            SliderFill.Size = UDim2.new((NewValue - Min) / (Max - Min), 0, 1, 0)
+            SliderFill.Size = UDim2.fromScale((NewValue - Min) / (Max - Min), 1)
             SliderButton.Position = UDim2.new((NewValue - Min) / (Max - Min), -8, 0.5, -8)
             ValueText.Text = string.format("%.1f", NewValue)
             if OnChanged then
@@ -294,7 +294,7 @@ function SettingsUI:CreateToggle(Parent, Label, Value, OnChanged)
     LabelText.Parent = Container
 
     local Toggle = Instance.new("TextButton")
-    Toggle.Size = UDim2.new(0, 50, 0, 26)
+    Toggle.Size = UDim2.fromOffset(50, 26)
     Toggle.Position = UDim2.new(0.8, 0, 0, 7)
     Toggle.BackgroundColor3 = Value and Color3.new(0, 0.7, 0.3) or Color3.new(0.4, 0.4, 0.4)
     Toggle.BorderSizePixel = 0

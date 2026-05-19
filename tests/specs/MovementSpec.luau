@@ -64,7 +64,7 @@ return TestRunner.describe("MovementSystem", function(it)
         local char = makeCharacter()
         local m = RivalsCore.MovementSystem.new(char)
         m:SetWeaponDoubleJump(true)
-        expect.truthy(m.State.HasWeaponDoubleJump or m.State.DoubleJumpEnabled or true)  -- field name may vary
+        expect.truthy(m.State.HasWeaponDoubleJump or m.State.DoubleJumpEnabled or true) -- field name may vary
         char:Destroy()
     end)
 end)

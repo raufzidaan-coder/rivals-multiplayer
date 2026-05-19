@@ -1,5 +1,7 @@
 # Rivals — Monorepo
 
+[![Pages](https://github.com/raufzidaan-coder/rivals-multiplayer/actions/workflows/deploy.yml/badge.svg)](https://raufzidaan-coder.github.io/rivals-multiplayer/)
+
 This directory hosts **two independent projects** that happen to share the "Rivals" name and live alongside each other:
 
 | | Roblox FPS Game | Express Browser Game |
@@ -81,7 +83,7 @@ Full architecture, conventions, and the `RivalsCore` / `MapSystem` / `LobbyPads`
 
 ### Pre-applied bug fixes
 
-Ten fixes were already applied to the source vs. the original Rivals scripts (see `CLAUDE.md` for the authoritative list). Highlights:
+Seventeen fixes were already applied to the source vs. the original Rivals scripts (see `CLAUDE.md` for the authoritative list). Highlights:
 - `Server.server.luau` — `self:Lobby:LeaveQueue` (colon syntax) → `self.Lobby:LeaveQueue`
 - `Client.client.luau` and `Server.server.luau` — `script.Parent:WaitForChild("RivalsCore")` → `ReplicatedStorage:WaitForChild("RivalsCore")`
 - `LobbyPads.luau` — `Instance.new("TouchTransducer", Part)` (fake class — crash) → `Part.Touched:Connect(...)` with a Humanoid+Player check
@@ -91,6 +93,9 @@ Ten fixes were already applied to the source vs. the original Rivals scripts (se
 - `Server.server.luau` — `KillFeed:FireAllClients` now only fires during an active match
 - `MapSystem.luau` — `LoadMap` now validates the target map exists before deleting the current one
 - `Client.client.luau` — removed dead-local Primary/Secondary/Melee/Utility assignments
+- `RivalsCore.luau` — fixed 14 invalid Enum references (`Enum.InputState` → `Enum.UserInputState`, mouse buttons under `UserInputType` not `KeyCode`) that were breaking client input
+- `Settings.luau` — module now returns a single value (`Settings.UI = SettingsUI` instead of `return Settings, SettingsUI` which silently dropped the UI export)
+- `LobbyPads.luau` / `Client.client.luau` / `RivalsCore.luau` — selene-surfaced fixes: `Enum.MeshType.Box` → `Brick`, dead `StarterPlayerScripts` service lookup removed, duplicate `if/elseif` collapsed
 
 Re-apply all of these if you ever re-paste the originals.
 

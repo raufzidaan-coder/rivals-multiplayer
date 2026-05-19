@@ -12,7 +12,7 @@ print("\n" .. string.rep("#", 60))
 print("# Rivals test.rbxlx — auto-run on server start")
 print(string.rep("#", 60))
 
-task.wait(1)  -- let modules replicate
+task.wait(1) -- let modules replicate
 
 local suites = {}
 

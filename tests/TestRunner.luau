@@ -38,7 +38,10 @@ local function makeExpect(failures)
         near = function(a, b, eps)
             eps = eps or 0.0001
             if math.abs(a - b) > eps then
-                table.insert(failures, string.format("expected %s ~= %s within %s", tostring(a), tostring(b), tostring(eps)))
+                table.insert(
+                    failures,
+                    string.format("expected %s ~= %s within %s", tostring(a), tostring(b), tostring(eps))
+                )
             end
         end,
         ge = function(a, b)
@@ -73,10 +76,10 @@ end
 function TestRunner.describe(label, body)
     local cases = {}
     local function it(name, fn)
-        table.insert(cases, {name = name, fn = fn})
+        table.insert(cases, { name = name, fn = fn })
     end
     body(it)
-    return {label = label, cases = cases}
+    return { label = label, cases = cases }
 end
 
 function TestRunner.run(suites)
@@ -114,8 +117,7 @@ function TestRunner.run(suites)
     end
 
     print("\n" .. string.rep("=", 60))
-    print(string.format("[Rivals Tests] %d/%d passed, %d failed, %d skipped",
-        passed, total, failed, skipped))
+    print(string.format("[Rivals Tests] %d/%d passed, %d failed, %d skipped", passed, total, failed, skipped))
     print(string.rep("=", 60))
     if #failedDetails > 0 then
         print("\nFailed tests:")
@@ -123,7 +125,7 @@ function TestRunner.run(suites)
             print("  - " .. d)
         end
     end
-    return {total = total, passed = passed, failed = failed}
+    return { total = total, passed = passed, failed = failed }
 end
 
 return TestRunner

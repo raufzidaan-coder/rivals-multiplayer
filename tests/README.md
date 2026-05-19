@@ -53,6 +53,17 @@ and surrounding Roblox service APIs (TEST_PLAN.md sections R.\* and S.\*).
 | `SettingsSpec` | R.10 | `Settings` module loads and exports a table |
 | `ServicesSpec` | S.1-S.8 | Every Roblox engine API the game relies on (Tween, Camera enums, BloomEffect/ColorCorrectionEffect/DepthOfFieldEffect/Atmosphere, Sound, WeldConstraint/AssemblyMass/PhysicalProperties, ScreenGui/Frame/UICorner/UIListLayout, DataStoreService, HttpService JSON round-trip) |
 
+## Runtime characteristics & limits
+
+Measured against the boshyxd `robloxstudio` MCP plugin in Studio:
+
+- **MCP round-trip latency** — ~2-3s per `execute_luau` call (plugin uses a single-threaded HTTP polling loop, not WebSocket). Batch work into one large script per call where possible. The plugin's stated 20-40ms WebSocket overhead does not apply here.
+- **Output buffer ceiling** — `print()` bursts past ~500 lines per `execute_luau` call overwhelm the plugin's HTTP loop and force a Studio reopen to recover. Keep print loops under 200 lines per call.
+- **Mass-create benchmark** — 500 anchored Parts created via `Instance.new` in ~25ms; mass property set across them in ~5ms. The plugin itself is the bottleneck, not Studio.
+- **Place build determinism** — `rojo build test.project.json` produces a 124,418-byte `.rbxlx` reproducibly. Any size drift indicates a source change; rebuild + diff before flagging the test runner.
+
+If Studio's MCP panel shows "Server unavailable" or HTTP/MCP X after the runner finishes, the print-burst ceiling was probably exceeded. Close test.rbxlx (don't save) and reopen.
+
 ## What this does NOT cover
 
 These TEST_PLAN.md items require a real player session, real Studio MCP, or

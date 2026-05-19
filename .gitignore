@@ -29,3 +29,7 @@ sourcemap.json
 # Stray artifacts
 *.bak*
 *.luau-news.html
+
+# Studio session lock files (created while a .rbxlx is open in Studio)
+*.rbxlx.lock
+*.rbxl.lock

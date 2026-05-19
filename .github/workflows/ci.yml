@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches-ignore: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  stylua-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Install stylua
+        run: |
+          curl -sSL -o stylua.zip https://github.com/JohnnyMorganz/StyLua/releases/download/v2.5.2/stylua-linux-x86_64.zip
+          unzip -o stylua.zip -d /usr/local/bin
+          chmod +x /usr/local/bin/stylua
+      - name: stylua --check
+        run: stylua --check src/ tests/
+
+  selene-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Install selene
+        run: |
+          curl -sSL -o selene.zip https://github.com/Kampfkarren/selene/releases/download/0.30.1/selene-0.30.1-linux.zip
+          unzip -o selene.zip -d /usr/local/bin
+          chmod +x /usr/local/bin/selene
+      - name: selene src/ tests/
+        run: selene --num-threads 1 src/ tests/
+
+  rojo-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Install rojo
+        run: |
+          curl -sSL -o rojo.zip https://github.com/rojo-rbx/rojo/releases/download/v7.6.1/rojo-7.6.1-linux-x86_64.zip
+          unzip -o rojo.zip -d /usr/local/bin
+          chmod +x /usr/local/bin/rojo
+      - name: Build default.project.json
+        run: rojo build default.project.json -o /tmp/ci.rbxlx
+      - name: Build test.project.json
+        run: rojo build test.project.json -o /tmp/citest.rbxlx

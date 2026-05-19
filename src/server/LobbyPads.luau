@@ -3,7 +3,6 @@
     Create these pads in your Roblox Studio place
 ]]
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
 local PadSystem = {}
@@ -33,24 +32,28 @@ function PadSystem:CreatePad(Name, Color, Position, QueueType, TeamSize)
     Part.CanCollide = false
     Part.Transparency = 0.5
 
-    local Mesh = Instance.new("SpecialMesh", Part)
+    local Mesh = Instance.new("SpecialMesh")
     Mesh.MeshType = Enum.MeshType.Brick
+    Mesh.Parent = Part
 
-    local SurfaceGui = Instance.new("SurfaceGui", Part)
+    local SurfaceGui = Instance.new("SurfaceGui")
     SurfaceGui.Adornee = Part
+    SurfaceGui.Parent = Part
 
-    local TextLabel = Instance.new("TextLabel", SurfaceGui)
-    TextLabel.Size = UDim2.new(1, 0, 1, 0)
+    local TextLabel = Instance.new("TextLabel")
+    TextLabel.Size = UDim2.fromScale(1, 1)
     TextLabel.BackgroundTransparency = 1
     TextLabel.Text = Name
     TextLabel.TextColor3 = Color
     TextLabel.TextScaled = true
     TextLabel.Font = Enum.Font.GothamBold
+    TextLabel.Parent = SurfaceGui
 
-    local ClickDetector = Instance.new("ClickDetector", Part)
+    local ClickDetector = Instance.new("ClickDetector")
     ClickDetector.MouseClick:Connect(function(Player)
         self:OnPadClicked(Player, Pad)
     end)
+    ClickDetector.Parent = Part
 
     Part.Touched:Connect(function(otherPart)
         local character = otherPart.Parent

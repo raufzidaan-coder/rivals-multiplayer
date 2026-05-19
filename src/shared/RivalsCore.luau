@@ -4,14 +4,10 @@
     Then require it from ServerScriptService and StarterPlayer
 ]]
 
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
-local Debris = game:GetService("Debris")
-local CollectionService = game:GetService("CollectionService")
-local TweenService = game:GetService("TweenService")
 
 --=============================================================================
 -- CONFIGURATION
@@ -1320,7 +1316,23 @@ function GameModeManager:SpawnPlayer(Player, Team)
     end
 end
 
+function GameModeManager:SetSpawns(SpawnsByTeam)
+    -- SpawnsByTeam: { Team1 = {CFrame, ...}, Team2 = {CFrame, ...} }
+    self.Spawns = SpawnsByTeam
+    self.SpawnCursor = { Team1 = 0, Team2 = 0 }
+end
+
 function GameModeManager:GetSpawnCFrame(Team)
+    -- If a map's Spawns table is registered via :SetSpawns, round-robin through it.
+    -- Otherwise fall back to the hardcoded ±50 spawn so tests + bare arenas still work.
+    if self.Spawns and self.Spawns[Team] and #self.Spawns[Team] > 0 then
+        local cursor = (self.SpawnCursor[Team] or 0) + 1
+        if cursor > #self.Spawns[Team] then
+            cursor = 1
+        end
+        self.SpawnCursor[Team] = cursor
+        return self.Spawns[Team][cursor]
+    end
     return CFrame.new(Team == "Team1" and -50 or 50, 10, 0)
 end
 
@@ -1448,7 +1460,7 @@ function LobbySystem:JoinQueue(Player, QueueType)
 end
 
 function LobbySystem:LeaveQueue(Player)
-    for QueueType, Queue in pairs(self.Queues) do
+    for _QueueType, Queue in pairs(self.Queues) do
         local Index = table.find(Queue, Player)
         if Index then
             table.remove(Queue, Index)
@@ -1458,16 +1470,16 @@ end
 
 function LobbySystem:StartMatch(QueueType)
     local Settings = self.Settings[QueueType]
-    local Players = {}
+    local MatchPlayers = {}
 
-    for i = 1, Settings.MaxPlayers do
-        table.insert(Players, table.remove(self.Queues[QueueType], 1))
+    for _ = 1, Settings.MaxPlayers do
+        table.insert(MatchPlayers, table.remove(self.Queues[QueueType], 1))
     end
 
     local Team1 = {}
     local Team2 = {}
 
-    for i, Player in ipairs(Players) do
+    for i, Player in ipairs(MatchPlayers) do
         if i % 2 == 1 then
             table.insert(Team1, Player)
         else
@@ -1526,22 +1538,22 @@ end
 
 function UISystem:CreateCrosshair(Parent)
     local Crosshair = Instance.new("Frame")
-    Crosshair.Size = UDim2.new(0, 20, 0, 20)
+    Crosshair.Size = UDim2.fromOffset(20, 20)
     Crosshair.BackgroundTransparency = 1
-    Crosshair.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Crosshair.Position = UDim2.fromScale(0.5, 0.5)
     Crosshair.AnchorPoint = Vector2.new(0.5, 0.5)
     Crosshair.Parent = Parent
 
     local Dot = Instance.new("Frame")
-    Dot.Size = UDim2.new(0, 4, 0, 4)
+    Dot.Size = UDim2.fromOffset(4, 4)
     Dot.BackgroundColor3 = Color3.new(1, 1, 1)
     Dot.BorderSizePixel = 0
-    Dot.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Dot.Position = UDim2.fromScale(0.5, 0.5)
     Dot.AnchorPoint = Vector2.new(0.5, 0.5)
     Dot.Parent = Crosshair
 
     local Top = Instance.new("Frame")
-    Top.Size = UDim2.new(0, 2, 0, 8)
+    Top.Size = UDim2.fromOffset(2, 8)
     Top.BackgroundColor3 = Color3.new(1, 1, 1)
     Top.BorderSizePixel = 0
     Top.Position = UDim2.new(0.5, 0, 0.5, -10)
@@ -1554,7 +1566,7 @@ function UISystem:CreateCrosshair(Parent)
     Bottom.Parent = Crosshair
 
     local Left = Instance.new("Frame")
-    Left.Size = UDim2.new(0, 8, 0, 2)
+    Left.Size = UDim2.fromOffset(8, 2)
     Left.BackgroundColor3 = Color3.new(1, 1, 1)
     Left.BorderSizePixel = 0
     Left.Position = UDim2.new(0.5, -10, 0.5, 0)
@@ -1571,7 +1583,7 @@ end
 
 function UISystem:CreateHealthBar(Parent)
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0, 300, 0, 60)
+    Container.Size = UDim2.fromOffset(300, 60)
     Container.Position = UDim2.new(0, 20, 1, -80)
     Container.BackgroundTransparency = 1
     Container.Parent = Parent
@@ -1606,7 +1618,7 @@ end
 
 function UISystem:CreateWeaponInfo(Parent)
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0, 200, 0, 80)
+    Container.Size = UDim2.fromOffset(200, 80)
     Container.Position = UDim2.new(1, -220, 1, -100)
     Container.BackgroundTransparency = 1
     Container.Parent = Parent
@@ -1623,7 +1635,7 @@ function UISystem:CreateWeaponInfo(Parent)
 
     local AmmoInfo = Instance.new("TextLabel")
     AmmoInfo.Size = UDim2.new(1, 0, 0, 40)
-    AmmoInfo.Position = UDim2.new(0, 0, 0, 24)
+    AmmoInfo.Position = UDim2.fromOffset(0, 24)
     AmmoInfo.BackgroundTransparency = 1
     AmmoInfo.Text = "30 / 90"
     AmmoInfo.TextColor3 = Color3.new(0.8, 0.8, 0.8)
@@ -1638,7 +1650,7 @@ end
 
 function UISystem:CreateKillFeed(Parent)
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0, 350, 0, 300)
+    Container.Size = UDim2.fromOffset(350, 300)
     Container.Position = UDim2.new(1, -370, 0, 20)
     Container.BackgroundTransparency = 1
     Container.Parent = Parent
@@ -1656,7 +1668,7 @@ function UISystem:AddKillFeedEntry(Killer, Victim, Weapon)
     Entry.Parent = self.KillFeedContainer
 
     local KillerName = Instance.new("TextLabel")
-    KillerName.Size = UDim2.new(0.45, 0, 1, 0)
+    KillerName.Size = UDim2.fromScale(0.45, 1)
     KillerName.BackgroundTransparency = 1
     KillerName.Text = Killer.Name
     KillerName.TextColor3 = Color3.new(0.3, 0.8, 1)
@@ -1666,8 +1678,8 @@ function UISystem:AddKillFeedEntry(Killer, Victim, Weapon)
     KillerName.Parent = Entry
 
     local WeaponName = Instance.new("TextLabel")
-    WeaponName.Size = UDim2.new(0.1, 0, 1, 0)
-    WeaponName.Position = UDim2.new(0.45, 0, 0, 0)
+    WeaponName.Size = UDim2.fromScale(0.1, 1)
+    WeaponName.Position = UDim2.fromScale(0.45, 0)
     WeaponName.BackgroundTransparency = 1
     WeaponName.Text = Weapon
     WeaponName.TextColor3 = Color3.new(0.7, 0.7, 0.7)
@@ -1676,8 +1688,8 @@ function UISystem:AddKillFeedEntry(Killer, Victim, Weapon)
     WeaponName.Parent = Entry
 
     local VictimName = Instance.new("TextLabel")
-    VictimName.Size = UDim2.new(0.45, 0, 1, 0)
-    VictimName.Position = UDim2.new(0.55, 0, 0, 0)
+    VictimName.Size = UDim2.fromScale(0.45, 1)
+    VictimName.Position = UDim2.fromScale(0.55, 0)
     VictimName.BackgroundTransparency = 1
     VictimName.Text = Victim.Name
     VictimName.TextColor3 = Color3.new(1, 0.3, 0.3)
@@ -1690,7 +1702,7 @@ function UISystem:AddKillFeedEntry(Killer, Victim, Weapon)
     self.KillFeedEntries[Index] = Entry
 
     for i = Index + 1, #self.KillFeedEntries do
-        self.KillFeedEntries[i].Position = UDim2.new(0, 0, 0, 30 * (i - Index))
+        self.KillFeedEntries[i].Position = UDim2.fromOffset(0, 30 * (i - Index))
     end
 
     task.delay(5, function()
@@ -1703,8 +1715,8 @@ end
 
 function UISystem:CreateScoreboard(Parent)
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0, 400, 0, 300)
-    Container.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Container.Size = UDim2.fromOffset(400, 300)
+    Container.Position = UDim2.fromScale(0.5, 0.5)
     Container.AnchorPoint = Vector2.new(0.5, 0.5)
     Container.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
     Container.BackgroundTransparency = 0.3
@@ -1724,7 +1736,7 @@ function UISystem:CreateScoreboard(Parent)
 
     local Team1Score = Instance.new("TextLabel")
     Team1Score.Size = UDim2.new(0.4, 0, 0, 30)
-    Team1Score.Position = UDim2.new(0.05, 0, 0.15, 0)
+    Team1Score.Position = UDim2.fromScale(0.05, 0.15)
     Team1Score.BackgroundTransparency = 1
     Team1Score.Text = "Team 1: 0"
     Team1Score.TextColor3 = Color3.new(0.3, 0.8, 1)
@@ -1734,7 +1746,7 @@ function UISystem:CreateScoreboard(Parent)
 
     local Team2Score = Instance.new("TextLabel")
     Team2Score.Size = UDim2.new(0.4, 0, 0, 30)
-    Team2Score.Position = UDim2.new(0.55, 0, 0.15, 0)
+    Team2Score.Position = UDim2.fromScale(0.55, 0.15)
     Team2Score.BackgroundTransparency = 1
     Team2Score.Text = "Team 2: 0"
     Team2Score.TextColor3 = Color3.new(1, 0.3, 0.3)
@@ -1749,7 +1761,7 @@ end
 
 function UISystem:CreateMinimap(Parent)
     local Container = Instance.new("Frame")
-    Container.Size = UDim2.new(0, 150, 0, 150)
+    Container.Size = UDim2.fromOffset(150, 150)
     Container.Position = UDim2.new(1, -170, 0, 20)
     Container.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
     Container.BackgroundTransparency = 0.5
@@ -1923,6 +1935,21 @@ function ClientController:SetupInput()
         end
     end, false, Enum.KeyCode.Two)
 
+    -- G = utility ability (grenade/flashbang), F = quick-melee.
+    -- Both fire UseAbility:FireServer; server validates cooldown via AbilitySystem.
+    local UseAbility = ReplicatedStorage:WaitForChild("UseAbility")
+    ContextActionService:BindAction("Utility", function(_, _, InputState)
+        if InputState == Enum.UserInputState.Begin then
+            UseAbility:FireServer("Grenade")
+        end
+    end, false, Enum.KeyCode.G)
+
+    ContextActionService:BindAction("QuickMelee", function(_, _, InputState)
+        if InputState == Enum.UserInputState.Begin then
+            UseAbility:FireServer("QuickMelee")
+        end
+    end, false, Enum.KeyCode.F)
+
     UserInputService.InputChanged:Connect(function(Input)
         if Input.UserInputType == Enum.UserInputType.MouseMovement then
             self:OnMouseMove(Input.Position)
@@ -1937,7 +1964,7 @@ end
 
 function ClientController:OnMouseMove(Delta)
     if self.Player.Character and self.Player.Character:FindFirstChild("Humanoid") then
-        local Camera = self.Player.Character:FindFirstChild("Humanoid").CameraOffset
+        local _CameraOffset = self.Player.Character:FindFirstChild("Humanoid").CameraOffset
         local Sensitivity = self.Settings.MouseSensitivity
 
         if self.Input.ADS then
@@ -2007,7 +2034,7 @@ function ClientController:ProcessShot()
         if HitCharacter and HitCharacter ~= self.Character then
             local HitPlayer = Players:GetPlayerFromCharacter(HitCharacter)
             if HitPlayer then
-                local Damage, IsHeadshot = self.Combat:TakeDamage(WeaponData.Damage, self.Character, HitPart)
+                local _Damage, IsHeadshot = self.Combat:TakeDamage(WeaponData.Damage, self.Character, HitPart)
 
                 if IsHeadshot then
                     local DataManager = PlayerDataManager.new()
@@ -2041,6 +2068,55 @@ end
 -- MAIN MODULE EXPORTS
 --=============================================================================
 
+--=============================================================================
+-- ABILITY SYSTEM (skeleton)
+--=============================================================================
+-- Minimal AbilitySystem so UseAbility RemoteEvent has a real consumer + cooldown
+-- enforcement. Per-player cooldown table is server-owned. Effects are stubs
+-- the gameplay code can replace per-ability.
+
+local AbilitySystem = {}
+AbilitySystem.__index = AbilitySystem
+
+AbilitySystem.Cooldowns = {
+    Grenade = 8,
+    Flashbang = 12,
+    QuickMelee = 0.6,
+}
+
+function AbilitySystem.new()
+    local self = setmetatable({}, AbilitySystem)
+    self.LastUse = {} -- [Player][AbilityName] = tick()
+    return self
+end
+
+function AbilitySystem:CanUse(Player, AbilityName)
+    local cooldown = AbilitySystem.Cooldowns[AbilityName]
+    if not cooldown then
+        return false, "unknown ability"
+    end
+    self.LastUse[Player] = self.LastUse[Player] or {}
+    local last = self.LastUse[Player][AbilityName]
+    if last and (tick() - last) < cooldown then
+        return false, "cooldown"
+    end
+    return true
+end
+
+function AbilitySystem:Use(Player, AbilityName)
+    local ok, reason = self:CanUse(Player, AbilityName)
+    if not ok then
+        return false, reason
+    end
+    self.LastUse[Player][AbilityName] = tick()
+    -- Hook: gameplay code wires actual VFX/damage in :Effect for now this is just bookkeeping.
+    return true
+end
+
+function AbilitySystem:ClearPlayer(Player)
+    self.LastUse[Player] = nil
+end
+
 local RivalsCore = {
     CONFIG = CONFIG,
     WEAPONS = WEAPONS,
@@ -2048,6 +2124,7 @@ local RivalsCore = {
     MovementSystem = MovementSystem,
     WeaponSystem = WeaponSystem,
     CombatSystem = CombatSystem,
+    AbilitySystem = AbilitySystem,
     GameModeManager = GameModeManager,
     LobbySystem = LobbySystem,
     UISystem = UISystem,
