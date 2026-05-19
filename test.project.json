@@ -1,0 +1,61 @@
+{
+    "name": "rivals-tests",
+    "tree": {
+        "$className": "DataModel",
+        "ReplicatedStorage": {
+            "$className": "ReplicatedStorage",
+            "RivalsCore": {
+                "$path": "src/shared/RivalsCore.luau"
+            },
+            "MapSystem": {
+                "$path": "src/shared/MapSystem.luau"
+            },
+            "Settings": {
+                "$path": "src/shared/Settings.luau"
+            }
+        },
+        "ServerScriptService": {
+            "$className": "ServerScriptService",
+            "RivalsServer": {
+                "$path": "src/server"
+            },
+            "Tests": {
+                "$path": "tests"
+            }
+        },
+        "StarterPlayer": {
+            "$className": "StarterPlayer",
+            "StarterPlayerScripts": {
+                "$className": "StarterPlayerScripts",
+                "RivalsClient": {
+                    "$path": "src/client"
+                }
+            }
+        },
+        "Workspace": {
+            "$className": "Workspace",
+            "$properties": {
+                "Gravity": 196.2,
+                "StreamingEnabled": false
+            },
+            "Baseplate": {
+                "$className": "Part",
+                "$properties": {
+                    "Name": "Baseplate",
+                    "Position": [0, -0.5, 0],
+                    "Size": [200, 1, 200],
+                    "Anchored": true
+                }
+            }
+        },
+        "Lighting": {
+            "$className": "Lighting"
+        },
+        "HttpService": {
+            "$className": "HttpService",
+            "$properties": {
+                "HttpEnabled": true
+            }
+        }
+    }
+}

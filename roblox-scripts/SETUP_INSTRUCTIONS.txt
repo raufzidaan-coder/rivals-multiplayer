@@ -1,0 +1,193 @@
+============================================================
+  RIVALS - Roblox Studio Setup Instructions
+  How to put all scripts into your Roblox Studio game
+============================================================
+
+You have 6 script files. Here's EXACTLY where each one goes
+and what type to set it as.
+
+============================================================
+STEP 1: Open Roblox Studio
+============================================================
+- Open Roblox Studio
+- Create a new "Baseplate" game or open your existing place
+- Make sure the Explorer panel and Properties panel are
+  visible (View menu > check Explorer and Properties)
+
+============================================================
+STEP 2: Create the WeaponConfig Module (MUST DO FIRST)
+============================================================
+File: 3_WeaponConfig.lua
+
+1. In Explorer, click on "ReplicatedStorage"
+2. Right-click ReplicatedStorage > Insert Object > ModuleScript
+3. Rename it to "WeaponConfig" (click the name to rename)
+4. Double-click it to open the script editor
+5. Delete all the default code
+6. Copy-paste the ENTIRE contents of 3_WeaponConfig.lua
+7. Press Ctrl+S to save
+
+============================================================
+STEP 3: Add the Game Server Script
+============================================================
+File: 4_GameServer.lua
+
+1. In Explorer, click on "ServerScriptService"
+2. Right-click ServerScriptService > Insert Object > Script
+3. Rename it to "GameServer"
+4. Double-click to open, delete default code
+5. Copy-paste the ENTIRE contents of 4_GameServer.lua
+6. Press Ctrl+S to save
+
+============================================================
+STEP 4: Add the Shooting Range Script
+============================================================
+File: 2_ShootingRange.lua
+
+1. In Explorer, click on "ServerScriptService"
+2. Right-click ServerScriptService > Insert Object > Script
+3. Rename it to "ShootingRange"
+4. Double-click to open, delete default code
+5. Copy-paste the ENTIRE contents of 2_ShootingRange.lua
+6. Press Ctrl+S to save
+
+============================================================
+STEP 5: Add the Loading Screen (Client Script)
+============================================================
+File: 1_LoadingScreen.lua
+
+1. In Explorer, click on "StarterPlayer" > "StarterPlayerScripts"
+2. Right-click StarterPlayerScripts > Insert Object > LocalScript
+3. Rename it to "LoadingScreen"
+4. Double-click to open, delete default code
+5. Copy-paste the ENTIRE contents of 1_LoadingScreen.lua
+6. Press Ctrl+S to save
+
+============================================================
+STEP 6: Add the Weapon Client Script
+============================================================
+File: 5_WeaponClient.lua
+
+1. In Explorer, click on "StarterPlayer" > "StarterPlayerScripts"
+2. Right-click StarterPlayerScripts > Insert Object > LocalScript
+3. Rename it to "WeaponClient"
+4. Double-click to open, delete default code
+5. Copy-paste the ENTIRE contents of 5_WeaponClient.lua
+6. Press Ctrl+S to save
+
+============================================================
+STEP 7: Add the Shop GUI Script
+============================================================
+File: 6_ShopGUI.lua
+
+1. In Explorer, click on "StarterPlayer" > "StarterPlayerScripts"
+2. Right-click StarterPlayerScripts > Insert Object > LocalScript
+3. Rename it to "ShopGUI"
+4. Double-click to open, delete default code
+5. Copy-paste the ENTIRE contents of 6_ShopGUI.lua
+6. Press Ctrl+S to save
+
+============================================================
+YOUR EXPLORER SHOULD LOOK LIKE THIS:
+============================================================
+
+game
+ ├── ReplicatedStorage
+ │    └── WeaponConfig (ModuleScript)      <-- 3_WeaponConfig.lua
+ │
+ ├── ServerScriptService
+ │    ├── GameServer (Script)              <-- 4_GameServer.lua
+ │    └── ShootingRange (Script)           <-- 2_ShootingRange.lua
+ │
+ ├── StarterPlayer
+ │    └── StarterPlayerScripts
+ │         ├── LoadingScreen (LocalScript)  <-- 1_LoadingScreen.lua
+ │         ├── WeaponClient (LocalScript)   <-- 5_WeaponClient.lua
+ │         └── ShopGUI (LocalScript)        <-- 6_ShopGUI.lua
+ │
+ └── Workspace
+      └── (your map parts go here)
+
+============================================================
+STEP 8: TEST IT
+============================================================
+1. Click the "Play" button (or press F5) to test
+2. You should see:
+   - The 3D loading screen with spinning weapon
+   - After loading: your character spawns
+   - Press 1/2/3/4 to switch weapons
+   - Left-click to shoot (raycast bullets)
+   - Right-click to scope (on Sniper)
+   - Press R to reload
+   - Press B to open the weapon shop
+   - Walk onto the blue "SHOOTING RANGE" pad to teleport
+   - Walk onto the green "RETURN TO LOBBY" pad to go back
+
+============================================================
+CONTROLS SUMMARY
+============================================================
+  1       = Primary weapon
+  2       = Secondary weapon
+  3       = Melee weapon
+  4       = Utility (grenade, medkit, etc.)
+  R       = Reload
+  B       = Open/close weapon shop
+  LMB     = Fire / Attack
+  RMB     = Scope (Sniper only)
+
+============================================================
+TIPS FOR MAKING IT LOOK LIKE RIVALS (Roblox)
+============================================================
+To match the visual style of the official RIVALS game
+(https://www.roblox.com/games/17625359962/RIVALS):
+
+1. MAP STYLE:
+   - Use blocky, low-poly parts (standard Roblox parts)
+   - Color palette: dark grays, blues, and accent neons
+   - Add neon-colored trim on walls and edges
+   - Use Smooth Plastic material for most surfaces
+   - Add Neon material for accents and lights
+
+2. LIGHTING:
+   - Go to Lighting in Explorer
+   - Set Ambient to (30, 30, 40)
+   - Set Brightness to 1
+   - Set ClockTime to 0 (nighttime)
+   - Add a "ColorCorrection" effect:
+     Right-click Lighting > Insert > ColorCorrectionEffect
+     Set Contrast to 0.1, Saturation to 0.2
+   - Add a "Bloom" effect:
+     Right-click Lighting > Insert > BloomEffect
+     Set Intensity to 0.3, Size to 24
+
+3. ATMOSPHERE:
+   - Right-click Lighting > Insert > Atmosphere
+   - Set Density to 0.3
+   - Set Color to (20, 20, 40)
+
+4. BUILDING A MAP:
+   - Use Parts (not MeshParts) for the blocky FPS look
+   - Create cover objects: walls, crates, barrels
+   - Add SpawnLocation parts for team spawns
+   - Keep sightlines interesting (long corridors for
+     snipers, tight corners for shotguns)
+
+============================================================
+OPTIONAL: PUBLISHING
+============================================================
+1. File > Publish to Roblox
+2. Fill in game name: "RIVALS"
+3. Set max players to 10
+4. Enable "Allow Third-Party Teleports" if needed
+5. Publish and share the link!
+
+============================================================
+NEED HELP?
+============================================================
+- If scripts don't run: Make sure Script types are correct
+  (Script vs LocalScript) - see the file headers
+- If weapons don't work: Make sure WeaponConfig is in
+  ReplicatedStorage (not ServerStorage)
+- If shop doesn't open: Press B (not the button)
+- If targets don't respawn: Check that ShootingRange script
+  is in ServerScriptService

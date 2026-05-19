@@ -1,0 +1,26 @@
+{
+  "files.associations": {
+    "*.luau": "luau",
+    "*.lua": "luau"
+  },
+  "luau-lsp.types.definitionFiles": [
+    "types/globalTypes.d.luau"
+  ],
+  "luau-lsp.types.documentationFiles": [
+    "types/roblox-api-docs.json"
+  ],
+  "luau-lsp.sourcemap.enabled": true,
+  "luau-lsp.sourcemap.autogenerate": true,
+  "luau-lsp.sourcemap.rojoProjectFile": "default.project.json",
+  "luau-lsp.sourcemap.includeNonScripts": true,
+  "rojo.rojoPath": "${workspaceFolder}/tools/rojo.exe",
+  "[luau]": {
+    "editor.defaultFormatter": "JohnnyMorganz.stylua",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true
+  },
+  "files.exclude": {
+    "**/.git": true
+  }
+}

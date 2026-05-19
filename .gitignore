@@ -1,9 +1,31 @@
+# Node
 node_modules/
+package-lock.json
 .env
 .env.local
 *.log
-.DS_Store
-.vscode/
+
+# Editor
 .idea/
+.vscode/*.log
+*.swp
+*~
+
+# Build output
 dist/
 build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Roblox / Rojo
+*.rbxl
+*.rbxlx
+*.rbxm
+!tools/*.rbxm
+sourcemap.json
+
+# Stray artifacts
+*.bak*
+*.luau-news.html

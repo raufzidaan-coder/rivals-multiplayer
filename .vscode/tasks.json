@@ -1,0 +1,39 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Rojo: Serve (live sync)",
+      "type": "shell",
+      "command": "${workspaceFolder}/tools/rojo.exe",
+      "args": ["serve"],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Rojo: Build place (rivals.rbxlx)",
+      "type": "shell",
+      "command": "${workspaceFolder}/tools/rojo.exe",
+      "args": ["build", "-o", "rivals.rbxlx"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Rojo: Sourcemap (regenerate)",
+      "type": "shell",
+      "command": "${workspaceFolder}/tools/rojo.exe",
+      "args": ["sourcemap", "default.project.json", "--include-non-scripts", "--output", "sourcemap.json"],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

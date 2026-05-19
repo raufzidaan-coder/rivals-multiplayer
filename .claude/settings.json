@@ -1,0 +1,21 @@
+{
+  "enableAllProjectMcpServers": false,
+  "enabledMcpjsonServers": ["robloxstudio"],
+  "permissions": {
+    "allow": [
+      "Bash(tools/rojo.exe:*)",
+      "Bash(rojo:*)",
+      "Bash(./tools/rojo.exe:*)",
+      "Bash(selene:*)",
+      "Bash(stylua:*)",
+      "Bash(node tools/patch-mcp-plugin.js:*)",
+      "Read(src/**)",
+      "Read(types/**)",
+      "Read(tools/**)",
+      "Edit(src/**)",
+      "Edit(tools/**)",
+      "Write(src/**)",
+      "Write(tools/**)"
+    ]
+  }
+}
