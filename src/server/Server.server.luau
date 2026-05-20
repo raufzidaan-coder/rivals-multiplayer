@@ -30,11 +30,17 @@ function Server.new()
     self.Players = {}
     self.PlayerCombat = {} -- [Player] = CombatSystem instance (server-authoritative)
     self.LastFireTime = {} -- [Player] = tick() of last fire (rate limit floor)
+    self.AbilityTokens = {} -- [Player] = {tokens=4, last=tick()} for UseAbility RemoteEvent
     self.DataManager = RivalsCore.PlayerDataManager.new()
     self.Abilities = RivalsCore.AbilitySystem.new()
     self.RemoteEvents = self:CreateRemoteEvents()
     return self
 end
+
+local TEAM_COLOR = {
+    Team1 = Color3.fromRGB(80, 150, 255), -- cyan/blue
+    Team2 = Color3.fromRGB(255, 80, 80), -- red
+}
 
 function Server:CreateRemoteEvents()
     local Events = {}
@@ -71,7 +77,46 @@ function Server:CreateRemoteEvents()
     Events.FireWeapon.Name = "FireWeapon"
     Events.FireWeapon.Parent = ReplicatedStorage
 
+    -- DamageDealt fires to a player when THEY take damage (drives directional
+    -- indicator + low-HP vignette on the client).
+    Events.DamageDealt = Instance.new("RemoteEvent")
+    Events.DamageDealt.Name = "DamageDealt"
+    Events.DamageDealt.Parent = ReplicatedStorage
+
+    -- HitConfirm fires to a shooter when THEIR shot lands on an enemy
+    -- (drives hit marker UI).
+    Events.HitConfirm = Instance.new("RemoteEvent")
+    Events.HitConfirm.Name = "HitConfirm"
+    Events.HitConfirm.Parent = ReplicatedStorage
+
     return Events
+end
+
+-- Server applies a Highlight + team-color attribute on each character spawn.
+-- Color is read by the HUD (nametag) and lets clients tell teams apart
+-- regardless of avatar customization.
+function Server:ApplyTeamVisuals(Player, Character)
+    local team = self.Players[Player] and self.Players[Player].Team
+    if not team then
+        -- Neutral lobby state — strip any existing Highlight.
+        local existing = Character:FindFirstChild("RivalsTeamHL")
+        if existing then
+            existing:Destroy()
+        end
+        Character:SetAttribute("Team", nil)
+        return
+    end
+
+    Character:SetAttribute("Team", team)
+    local color = TEAM_COLOR[team] or Color3.new(1, 1, 1)
+
+    local hl = Character:FindFirstChild("RivalsTeamHL") or Instance.new("Highlight")
+    hl.Name = "RivalsTeamHL"
+    hl.OutlineColor = color
+    hl.OutlineTransparency = 0
+    hl.FillTransparency = 1
+    hl.DepthMode = Enum.HighlightDepthMode.Occluded
+    hl.Parent = Character
 end
 
 function Server:OnPlayerJoined(Player)
@@ -116,6 +161,8 @@ function Server:OnCharacterAdded(Player, Character)
     -- Server-authoritative combat state. Re-created each character spawn so the
     -- new Character/Humanoid references are bound. Old entries are GC'd.
     self.PlayerCombat[Player] = RivalsCore.CombatSystem.new(Character)
+
+    self:ApplyTeamVisuals(Player, Character)
 
     task.delay(0.1, function()
         self:SpawnInLobby(Player)
@@ -189,6 +236,78 @@ function Server:ProcessFire(ShooterPlayer, WeaponName, AimDirection)
         local Data = self.DataManager:GetData(ShooterPlayer)
         Data.Headshots = (Data.Headshots or 0) + 1
     end
+
+    -- Notify victim: drives directional indicator + low-HP vignette.
+    local shooterChar = ShooterPlayer.Character
+    local shooterPos = shooterChar
+            and shooterChar:FindFirstChild("HumanoidRootPart")
+            and shooterChar.HumanoidRootPart.Position
+        or RayOrigin
+    self.RemoteEvents.DamageDealt:FireClient(Victim, shooterPos, WeaponData.Damage, IsHeadshot)
+
+    -- Notify shooter: drives hit marker UI.
+    local wasLethal = victimCombat.IsDead == true
+    self.RemoteEvents.HitConfirm:FireClient(ShooterPlayer, IsHeadshot, wasLethal)
+end
+
+-- Server-authoritative Grenade dispatch. Spawns a physics ball at the caster's
+-- camera-forward, 3s fuse, then computes falloff damage on each player in range.
+-- LOS halved damage (explosions wrap cover); friendly-fire off by default.
+function Server:DispatchGrenade(Caster)
+    local cfg = RivalsCore.AbilitySystem.GrenadeConfig
+    local char = Caster.Character
+    if not (char and char:FindFirstChild("HumanoidRootPart")) then
+        return
+    end
+    local hrp = char.HumanoidRootPart
+    local forward = hrp.CFrame.LookVector
+
+    local grenade = Instance.new("Part")
+    grenade.Name = "RivalsGrenade"
+    grenade.Shape = Enum.PartType.Ball
+    grenade.Size = Vector3.new(1.2, 1.2, 1.2)
+    grenade.Material = Enum.Material.Metal
+    grenade.BrickColor = BrickColor.new("Olive")
+    grenade.CFrame = hrp.CFrame + forward * 2 + Vector3.new(0, 1.5, 0)
+    grenade.CustomPhysicalProperties = PhysicalProperties.new(1.2, 0.5, 0.35, 1, 1)
+    grenade.AssemblyLinearVelocity = forward * cfg.ThrowSpeed + Vector3.new(0, cfg.ThrowArcUp, 0)
+    grenade.Parent = workspace
+
+    task.delay(cfg.Fuse, function()
+        if not grenade or not grenade.Parent then
+            return
+        end
+        local blastCenter = grenade.Position
+        grenade:Destroy()
+
+        for _, otherPlayer in ipairs(Players:GetPlayers()) do
+            local oc = otherPlayer.Character
+            if oc and oc:FindFirstChild("HumanoidRootPart") then
+                local dist = (oc.HumanoidRootPart.Position - blastCenter).Magnitude
+                if dist <= cfg.OuterRadius then
+                    local dmg
+                    if dist <= cfg.InnerRadius then
+                        dmg = cfg.MaxDmg
+                    else
+                        local t = (dist - cfg.InnerRadius) / (cfg.OuterRadius - cfg.InnerRadius)
+                        dmg = cfg.MaxDmg - t * (cfg.MaxDmg - cfg.MinDmg)
+                    end
+                    -- LOS check: if blocked by world geometry, halve damage.
+                    local rp = RaycastParams.new()
+                    rp.FilterDescendantInstances = { oc, char }
+                    rp.FilterType = Enum.RaycastFilterType.Exclude
+                    local los = workspace:Raycast(blastCenter, oc.HumanoidRootPart.Position - blastCenter, rp)
+                    if los then
+                        dmg = dmg * 0.5
+                    end
+                    local victimCombat = self.PlayerCombat[otherPlayer]
+                    if victimCombat then
+                        victimCombat:TakeDamage(dmg, Caster, oc.HumanoidRootPart)
+                    end
+                end
+            end
+        end
+    end)
 end
 
 function Server:SpawnInLobby(Player)
@@ -224,17 +343,37 @@ function Server:SetupRemoteListeners()
     end)
 
     self.RemoteEvents.UseAbility.OnServerEvent:Connect(function(Player, AbilityName)
-        -- AbilityName is client-supplied; cap to known string keys to avoid table-key spam.
+        -- Per-player token bucket on the RemoteEvent itself (research finding
+        -- T-anticheat #2). Caps total UseAbility calls/sec regardless of
+        -- which ability — drops spam at the wire before AbilitySystem sees it.
+        local bucket = self.AbilityTokens[Player]
+        if not bucket then
+            bucket = { tokens = 4, last = tick() }
+            self.AbilityTokens[Player] = bucket
+        end
+        local now = tick()
+        bucket.tokens = math.min(4, bucket.tokens + (now - bucket.last) * 2) -- refill 2/sec, cap 4
+        bucket.last = now
+        if bucket.tokens < 1 then
+            return
+        end
+        bucket.tokens = bucket.tokens - 1
+
         if type(AbilityName) ~= "string" or #AbilityName > 32 then
             return
         end
         local ok, reason = self.Abilities:Use(Player, AbilityName)
         if not ok then
-            -- Silent rejection on cooldown; warn for unknown abilities so devs notice during playtest.
             if reason == "unknown ability" then
                 warn(string.format("[Server] UseAbility rejected: %q (%s)", AbilityName, reason))
             end
+            return
         end
+        -- Dispatch: route the now-authorized ability to its effect.
+        if AbilityName == "Grenade" then
+            self:DispatchGrenade(Player)
+        end
+        -- Flashbang/QuickMelee dispatchers can be wired here later.
     end)
 end
 
@@ -330,6 +469,14 @@ function Server:GetPlayerTeam(Player)
 end
 
 function Server:Start()
+    -- Voice chat: enable the new Audio API path so AudioDeviceInput/Emitter
+    -- get auto-created per voice-enabled player. Team-scoping happens later
+    -- in WireGameMode. The toggle is no-op if voice isn't available.
+    pcall(function()
+        local VoiceChatService = game:GetService("VoiceChatService")
+        VoiceChatService.UseAudioApi = Enum.AudioApiRollout.Enabled
+    end)
+
     self:SetupRemoteListeners()
 
     Players.PlayerAdded:Connect(function(Player)
@@ -341,6 +488,7 @@ function Server:Start()
         self.Players[Player] = nil
         self.PlayerCombat[Player] = nil
         self.LastFireTime[Player] = nil
+        self.AbilityTokens[Player] = nil
         self.Abilities:ClearPlayer(Player)
     end)
 

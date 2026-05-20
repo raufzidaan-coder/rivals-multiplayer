@@ -813,7 +813,7 @@ end
 
 function PlayerDataManager:GetData(Player)
     if not self.Data[Player.UserId] then
-        self.Data[Player.UserId] = {
+        local default = {
             Level = 1,
             XP = 0,
             Keys = 0,
@@ -827,11 +827,26 @@ function PlayerDataManager:GetData(Player)
             Kills = 0,
             Deaths = 0,
             Headshots = 0,
+            -- Legacy alias — kept so old EquipWeapon code path still works while
+            -- callers migrate to Inventory.Weapons.
             WeaponsOwned = { "AssaultRifle", "Handgun", "Fists", "Grenade" },
-            Cosmetics = {},
+            -- New structured cosmetics/inventory (monetization research).
+            Inventory = {
+                Weapons = { "AssaultRifle", "Handgun", "Fists", "Grenade" },
+                Attachments = {}, -- [WeaponName] = { "RedDot", "ExtMag" }
+                Skins = {}, -- [WeaponName] = "GoldPlated"
+                Charms = {},
+                Finishers = {},
+            },
+            Equipped = { Skin = {}, Charm = {}, Finisher = nil },
+            Season = { ID = 1, BattlePassXP = 0, ClaimedTiers = {}, PrimeOwned = false },
+            GamePasses = { Premium = false, BattlePassS1 = false },
+            -- Training-range personal bests.
+            RangeBest = { QuickDraw = 0, Tracking = 0, HeadshotStreak = 0 },
             TasksCompleted = 0,
             PlacementMatches = 0,
         }
+        self.Data[Player.UserId] = default
     end
     return self.Data[Player.UserId]
 end
@@ -1024,6 +1039,13 @@ function WeaponSystem.new(Character, WeaponName)
 end
 
 function WeaponSystem:CanFire()
+    -- Training-range hook: characters with InfiniteAmmo attribute skip ammo gate.
+    if self.Character and self.Character:GetAttribute("InfiniteAmmo") then
+        if self.State.IsReloading then
+            return false
+        end
+        return true
+    end
     if self.State.IsReloading then
         return false
     end
@@ -1885,6 +1907,11 @@ end
 function ClientController:SetupInput()
     local ContextActionService = game:GetService("ContextActionService")
 
+    -- Platform detection: TouchEnabled+!MouseEnabled = pure mobile, GamepadEnabled
+    -- = controller plugged in. On hybrid devices both can be true; treat anything
+    -- with touch as mobile (Roblox auto-shows touch buttons via createTouchButton).
+    local IsTouch = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+
     -- WASD intentionally NOT bound here. The previous Enum.InputState typo crashed
     -- SetupInput before reaching the movement keys, so Roblox's default character
     -- controller silently handled WASD. Once that crash was fixed (fix #11), the
@@ -1902,14 +1929,14 @@ function ClientController:SetupInput()
         else
             self.Input.Jump = false
         end
-    end, false, Enum.KeyCode.Space)
+    end, IsTouch, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
 
     ContextActionService:BindAction("Sprint", function(_, _, InputState)
         self.Input.Sprint = InputState == Enum.UserInputState.Begin
         if self.Movement then
             self.Movement:Sprint(self.Input.Sprint)
         end
-    end, false, Enum.KeyCode.LeftShift)
+    end, IsTouch, Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonL3)
 
     ContextActionService:BindAction("Slide", function(_, _, InputState)
         if InputState == Enum.UserInputState.Begin then
@@ -1920,36 +1947,36 @@ function ClientController:SetupInput()
         else
             self.Input.Slide = false
         end
-    end, false, Enum.KeyCode.LeftControl)
+    end, IsTouch, Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonB)
 
     ContextActionService:BindAction("ADS", function(_, _, InputState)
         self.Input.ADS = InputState == Enum.UserInputState.Begin
         if self.Weapon then
             self.Weapon:SetADS(self.Input.ADS)
         end
-    end, false, Enum.UserInputType.MouseButton2)
+    end, IsTouch, Enum.UserInputType.MouseButton2, Enum.KeyCode.ButtonL2)
 
     ContextActionService:BindAction("Fire", function(_, _, InputState)
         self.Input.Fire = InputState == Enum.UserInputState.Begin
-    end, false, Enum.UserInputType.MouseButton1)
+    end, IsTouch, Enum.UserInputType.MouseButton1, Enum.KeyCode.ButtonR2)
 
     ContextActionService:BindAction("Reload", function(_, _, InputState)
         if InputState == Enum.UserInputState.Begin and self.Weapon then
             self.Weapon:Reload()
         end
-    end, false, Enum.KeyCode.R)
+    end, IsTouch, Enum.KeyCode.R, Enum.KeyCode.ButtonX)
 
     ContextActionService:BindAction("Weapon1", function(_, _, InputState)
         if InputState == Enum.UserInputState.Begin then
             self:EquipWeapon(1)
         end
-    end, false, Enum.KeyCode.One)
+    end, IsTouch, Enum.KeyCode.One, Enum.KeyCode.DPadUp)
 
     ContextActionService:BindAction("Weapon2", function(_, _, InputState)
         if InputState == Enum.UserInputState.Begin then
             self:EquipWeapon(2)
         end
-    end, false, Enum.KeyCode.Two)
+    end, IsTouch, Enum.KeyCode.Two, Enum.KeyCode.DPadDown)
 
     -- G = utility ability (grenade/flashbang), F = quick-melee.
     -- Both fire UseAbility:FireServer; server validates cooldown via AbilitySystem.
@@ -1958,13 +1985,13 @@ function ClientController:SetupInput()
         if InputState == Enum.UserInputState.Begin then
             UseAbility:FireServer("Grenade")
         end
-    end, false, Enum.KeyCode.G)
+    end, IsTouch, Enum.KeyCode.G, Enum.KeyCode.ButtonL1)
 
     ContextActionService:BindAction("QuickMelee", function(_, _, InputState)
         if InputState == Enum.UserInputState.Begin then
             UseAbility:FireServer("QuickMelee")
         end
-    end, false, Enum.KeyCode.F)
+    end, IsTouch, Enum.KeyCode.F, Enum.KeyCode.ButtonY)
 
     UserInputService.InputChanged:Connect(function(Input)
         if Input.UserInputType == Enum.UserInputType.MouseMovement then
@@ -2005,6 +2032,12 @@ function ClientController:EquipWeapon(Slot)
         if self.Movement then
             self.Movement:SetWeaponDoubleJump(self.Weapon:HasDoubleJump())
         end
+
+        -- Push ammo + weapon name onto character attributes so HUD.client.luau
+        -- can poll without a per-shot RemoteEvent roundtrip.
+        self.Character:SetAttribute("EquippedWeapon", WeaponName)
+        self.Character:SetAttribute("AmmoMag", self.Weapon.State.Magazine)
+        self.Character:SetAttribute("AmmoReserve", self.Weapon.State.Reserve)
     end
 end
 
@@ -2022,6 +2055,17 @@ function ClientController:Update(DeltaTime)
     if self.Weapon then
         if self.Input.Fire and self.Weapon:Fire() then
             self:ProcessShot()
+        end
+
+        -- Sync per-frame ammo state to character attributes for HUD pickup.
+        if self.Character then
+            self.Character:SetAttribute("AmmoMag", self.Weapon.State.Magazine)
+            self.Character:SetAttribute("AmmoReserve", self.Weapon.State.Reserve)
+        end
+
+        -- Decay accumulated spread between shots.
+        if self.Weapon.DecaySpread then
+            self.Weapon:DecaySpread(DeltaTime)
         end
 
         self.UI:UpdateWeapon(self.Weapon.WeaponName, self.Weapon.State.Magazine, self.Weapon.State.Reserve)
@@ -2092,19 +2136,35 @@ AbilitySystem.Cooldowns = {
     QuickMelee = 0.6,
 }
 
+AbilitySystem.GrenadeConfig = {
+    Fuse = 3.0,
+    ThrowSpeed = 60,
+    ThrowArcUp = 18,
+    InnerRadius = 6,
+    OuterRadius = 18,
+    MaxDmg = 95,
+    MinDmg = 25,
+}
+
 function AbilitySystem.new()
     local self = setmetatable({}, AbilitySystem)
     self.LastUse = {} -- [Player][AbilityName] = tick()
     return self
 end
 
+-- Validate ability name BEFORE touching LastUse (fix for memory-exhaustion
+-- vector: a cheater spamming unknown ability names would have allocated one
+-- table entry per call indefinitely).
 function AbilitySystem:CanUse(Player, AbilityName)
     local cooldown = AbilitySystem.Cooldowns[AbilityName]
     if not cooldown then
         return false, "unknown ability"
     end
-    self.LastUse[Player] = self.LastUse[Player] or {}
-    local last = self.LastUse[Player][AbilityName]
+    local playerBucket = self.LastUse[Player]
+    if not playerBucket then
+        return true -- first use; bucket created lazily in Use()
+    end
+    local last = playerBucket[AbilityName]
     if last and (tick() - last) < cooldown then
         return false, "cooldown"
     end
@@ -2116,8 +2176,11 @@ function AbilitySystem:Use(Player, AbilityName)
     if not ok then
         return false, reason
     end
+    -- Acquire the cooldown lock BEFORE any yielding validation (raycast etc.).
+    -- A future LOS check that yields would otherwise let a second same-tick
+    -- FireServer slip through (research finding T-anticheat #3).
+    self.LastUse[Player] = self.LastUse[Player] or {}
     self.LastUse[Player][AbilityName] = tick()
-    -- Hook: gameplay code wires actual VFX/damage in :Effect for now this is just bookkeeping.
     return true
 end
 

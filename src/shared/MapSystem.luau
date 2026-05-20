@@ -13,18 +13,23 @@ function MapSystem.new()
 end
 
 function MapSystem:CreateArena()
+    -- Arena 2.0 — de_dust2-inspired three-lane layout per research T1-M7.
+    -- Lane dividers split the map into A-lane / Mid / B-lane.
+    -- Asymmetric per-lane cover. Lowered center platform with two ramps.
+    -- Flanking catwalks. L-shaped spawn screens block direct cross-map AWPs.
+
     local Arena = {}
     Arena.Name = "Arena"
     Arena.Spawns = {
         Team1 = {
-            CFrame.new(-40, 5, 0),
-            CFrame.new(-45, 5, 15),
-            CFrame.new(-45, 5, -15),
+            CFrame.new(-42, 5, 0),
+            CFrame.new(-42, 5, 18),
+            CFrame.new(-42, 5, -18),
         },
         Team2 = {
-            CFrame.new(40, 5, 0),
-            CFrame.new(45, 5, 15),
-            CFrame.new(45, 5, -15),
+            CFrame.new(42, 5, 0),
+            CFrame.new(42, 5, 18),
+            CFrame.new(42, 5, -18),
         },
     }
 
@@ -32,85 +37,80 @@ function MapSystem:CreateArena()
     Folder.Name = "Arena"
     Folder.Parent = workspace
 
-    local Floor = Instance.new("Part")
-    Floor.Name = "Floor"
-    Floor.Size = Vector3.new(100, 1, 60)
-    Floor.Position = Vector3.new(0, -0.5, 0)
-    Floor.Anchored = true
-    Floor.BrickColor = BrickColor.new("Dark stone gray")
-    Floor.Parent = Folder
-
-    local Walls = {
-        { Size = Vector3.new(100, 20, 1), Position = Vector3.new(0, 10, 30) },
-        { Size = Vector3.new(100, 20, 1), Position = Vector3.new(0, 10, -30) },
-        { Size = Vector3.new(1, 20, 60), Position = Vector3.new(-50, 10, 0) },
-        { Size = Vector3.new(1, 20, 60), Position = Vector3.new(50, 10, 0) },
-    }
-
-    for _, Wall in ipairs(Walls) do
-        local Part = Instance.new("Part")
-        Part.Size = Wall.Size
-        Part.Position = Wall.Position
-        Part.Anchored = true
-        Part.BrickColor = BrickColor.new("Dark stone gray")
-        Part.CanCollide = true
-        Part.Parent = Folder
+    local function part(name, size, pos, color, material, parent, transparency)
+        local p = Instance.new("Part")
+        p.Name = name
+        p.Size = size
+        p.Position = pos
+        p.Anchored = true
+        p.CanCollide = true
+        p.BrickColor = BrickColor.new(color or "Medium stone grey")
+        p.Material = material or Enum.Material.Concrete
+        p.TopSurface = Enum.SurfaceType.Smooth
+        p.BottomSurface = Enum.SurfaceType.Smooth
+        if transparency then
+            p.Transparency = transparency
+        end
+        p.Parent = parent or Folder
+        return p
     end
 
-    local CoverPositions = {
-        Vector3.new(-20, 3, 0),
-        Vector3.new(20, 3, 0),
-        Vector3.new(0, 3, 20),
-        Vector3.new(0, 3, -20),
-        Vector3.new(-15, 3, 15),
-        Vector3.new(15, 3, -15),
-        Vector3.new(-15, 3, -15),
-        Vector3.new(15, 3, 15),
-    }
+    -- Floor (slate for texture/motion reference per T2-M6)
+    part("Floor", Vector3.new(100, 1, 60), Vector3.new(0, -0.5, 0), "Dark stone grey", Enum.Material.Slate)
 
-    for _, Pos in ipairs(CoverPositions) do
-        local Cover = Instance.new("Part")
-        Cover.Size = Vector3.new(8, 6, 8)
-        Cover.Position = Pos
-        Cover.Anchored = true
-        Cover.BrickColor = BrickColor.new("Medium stone gray")
-        Cover.CanCollide = true
-        Cover.Parent = Folder
-    end
+    -- Outer walls
+    part("WallNorth", Vector3.new(100, 20, 1), Vector3.new(0, 10, 30), "Dark stone grey", Enum.Material.Concrete)
+    part("WallSouth", Vector3.new(100, 20, 1), Vector3.new(0, 10, -30), "Dark stone grey", Enum.Material.Concrete)
+    part("WallEast", Vector3.new(1, 20, 60), Vector3.new(50, 10, 0), "Dark stone grey", Enum.Material.Concrete)
+    part("WallWest", Vector3.new(1, 20, 60), Vector3.new(-50, 10, 0), "Dark stone grey", Enum.Material.Concrete)
 
-    local Platforms = {
-        { Size = Vector3.new(20, 1, 20), Position = Vector3.new(0, 12, 0) },
-        { Size = Vector3.new(10, 1, 10), Position = Vector3.new(-25, 8, 0) },
-        { Size = Vector3.new(10, 1, 10), Position = Vector3.new(25, 8, 0) },
-    }
+    -- Lane dividers: split into A (z>10), Mid (-10..10), B (z<-10) with 8-stud gaps at x=±10
+    part("LaneA_Left", Vector3.new(20, 12, 2), Vector3.new(-25, 6, 10), "Medium stone grey", Enum.Material.Concrete)
+    part("LaneA_Right", Vector3.new(20, 12, 2), Vector3.new(25, 6, 10), "Medium stone grey", Enum.Material.Concrete)
+    part("LaneB_Left", Vector3.new(20, 12, 2), Vector3.new(-25, 6, -10), "Medium stone grey", Enum.Material.Concrete)
+    part("LaneB_Right", Vector3.new(20, 12, 2), Vector3.new(25, 6, -10), "Medium stone grey", Enum.Material.Concrete)
 
-    for _, Plat in ipairs(Platforms) do
-        local Platform = Instance.new("Part")
-        Platform.Size = Plat.Size
-        Platform.Position = Plat.Position
-        Platform.Anchored = true
-        Platform.BrickColor = BrickColor.new("Dark stone gray")
-        Platform.CanCollide = true
-        Platform.Transparency = 0.3
-        Platform.Parent = Folder
-    end
+    -- A-lane: low crouch cover (peek-able)
+    part("ALane_Cover_L", Vector3.new(10, 4, 3), Vector3.new(-15, 2, 22), "Brick yellow", Enum.Material.Concrete)
+    part("ALane_Cover_R", Vector3.new(10, 4, 3), Vector3.new(15, 2, 22), "Brick yellow", Enum.Material.Concrete)
 
-    local Ramp = Instance.new("Part")
-    Ramp.Name = "WallRunRamp"
-    Ramp.Size = Vector3.new(15, 1, 30)
-    Ramp.Position = Vector3.new(35, 3, 0)
-    Ramp.Anchored = true
-    Ramp.BrickColor = BrickColor.new("Dark stone gray")
-    Ramp.CanCollide = true
-    Ramp.Parent = Folder
+    -- B-lane: tall crates (full-body cover, no peek over)
+    part("BLane_Crate_L", Vector3.new(6, 8, 6), Vector3.new(-15, 4, -22), "Reddish brown", Enum.Material.Wood)
+    part("BLane_Crate_R", Vector3.new(6, 8, 6), Vector3.new(15, 4, -22), "Reddish brown", Enum.Material.Wood)
 
-    local LobbySpawn = Instance.new("Part")
-    LobbySpawn.Name = "LobbySpawn"
-    LobbySpawn.Size = Vector3.new(4, 1, 4)
-    LobbySpawn.Position = Vector3.new(0, 5, -50)
-    LobbySpawn.Anchored = true
+    -- Mid: central pillar sightline breaker (no elevation grant)
+    part("Mid_Pillar", Vector3.new(4, 14, 4), Vector3.new(0, 7, 0), "Dark stone grey", Enum.Material.Metal)
+
+    -- Center platform (lowered to y=8, smaller 14x14)
+    part(
+        "CenterPlatform",
+        Vector3.new(14, 1, 14),
+        Vector3.new(0, 8, 0),
+        "Dark stone grey",
+        Enum.Material.Metal,
+        nil,
+        0.2
+    )
+
+    -- Two ramps up to the platform (one from each team's side, contestable)
+    part("Ramp_North", Vector3.new(4, 1, 12), Vector3.new(0, 4, 7), "Dark stone grey", Enum.Material.Metal)
+    part("Ramp_South", Vector3.new(4, 1, 12), Vector3.new(0, 4, -7), "Dark stone grey", Enum.Material.Metal)
+
+    -- Flanking catwalks (diagonal flanks force checking two angles)
+    part("Catwalk_NE", Vector3.new(20, 1, 4), Vector3.new(-30, 6, 25), "Dark stone grey", Enum.Material.Metal)
+    part("Catwalk_SW", Vector3.new(20, 1, 4), Vector3.new(30, 6, -25), "Dark stone grey", Enum.Material.Metal)
+
+    -- L-shaped spawn screens (block direct cross-map AWP sightlines)
+    part("SpawnScreen_W1", Vector3.new(12, 8, 1), Vector3.new(-42, 4, 4), "Medium stone grey", Enum.Material.Concrete)
+    part("SpawnScreen_W2", Vector3.new(1, 8, 8), Vector3.new(-37, 4, 0), "Medium stone grey", Enum.Material.Concrete)
+    part("SpawnScreen_E1", Vector3.new(12, 8, 1), Vector3.new(42, 4, -4), "Medium stone grey", Enum.Material.Concrete)
+    part("SpawnScreen_E2", Vector3.new(1, 8, 8), Vector3.new(37, 4, 0), "Medium stone grey", Enum.Material.Concrete)
+
+    -- Lobby spawn (preserved from original layout for compatibility)
+    local LobbySpawn =
+        part("LobbySpawn", Vector3.new(4, 1, 4), Vector3.new(0, 5, -50), "Lime green", Enum.Material.Neon)
     LobbySpawn.Transparency = 1
-    LobbySpawn.Parent = Folder
+    LobbySpawn.CanCollide = false
 
     self.Maps.Arena = Arena
     return Arena
