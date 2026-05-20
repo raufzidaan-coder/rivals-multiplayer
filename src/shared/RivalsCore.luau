@@ -2344,7 +2344,13 @@ function ClientController:SpawnShotVisuals(Result, AimDirection)
 end
 
 function ClientController:UpdateCamera()
-    if self.Player.Character and self.Camera then
+    -- The original implementation wrote self.Camera.CFrame = CFrame.new(Head.Position)
+    -- every frame — a CFrame with DEFAULT rotation. Mouse-look would rotate
+    -- the camera for one frame, then this would snap it back to facing forward.
+    -- Disabled. Roblox's Custom CameraType (set in SetupCamera) handles tracking.
+    -- If ADS-offset / lean-peek is needed later, build it on top of the default
+    -- camera's CFrame instead of replacing it.
+    if false and self.Player.Character and self.Camera then
         local Character = self.Player.Character
         local Head = Character:FindFirstChild("Head")
 
