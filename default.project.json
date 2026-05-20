@@ -29,6 +29,28 @@
       },
       "Terrain": {
         "$className": "Terrain"
+      },
+      "Baseplate": {
+        "$className": "Part",
+        "$properties": {
+          "Name": "Baseplate",
+          "Position": [0, -0.5, 0],
+          "Size": [200, 1, 200],
+          "Anchored": true,
+          "Color": [0.3, 0.3, 0.3],
+          "Material": "Slate"
+        }
+      },
+      "SpawnLocation": {
+        "$className": "SpawnLocation",
+        "$properties": {
+          "Name": "SpawnLocation",
+          "Position": [0, 5, 0],
+          "Size": [12, 1, 12],
+          "Anchored": true,
+          "Color": [0.2, 0.6, 0.2],
+          "Material": "Grass"
+        }
       }
     },
 
