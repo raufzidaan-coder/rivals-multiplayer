@@ -41,7 +41,11 @@ local CONFIG = {
         FallDamageEnabled = false,
         MaxHealth = 100,
         MaxArmor = 50,
-        ArmorDamageReduction = 0.5,
+        ArmorDamageReduction = 0.66, -- Valorant-parity (was 0.5; T1-M5)
+        ArmorRegenDelay = 5, -- seconds out-of-combat before armor regens (Halo-style)
+        ArmorRegenRate = 15, -- armor per second after delay
+        HealthRegenEnabled = false, -- explicit: no HP regen, only pickups
+        TagDuration = 0.25, -- on hit, victim WalkSpeed scaled for this long (CS-style tagging)
     },
     Weapons = {
         QuickSwitchMax = 2,
@@ -79,6 +83,20 @@ local WEAPONS = {
         ReloadTime = 2.5,
         BulletType = "Hitscan",
         Speed = 1000,
+        -- 8-shot pattern: climbs ~6 units then drifts left. Approximates a CS2
+        -- AK spray. Index repeats past mag size — players that learn the first
+        -- 8 essentially have the whole gun mastered.
+        RecoilPattern = {
+            Vector2.new(0, 0.8),
+            Vector2.new(0.1, 0.9),
+            Vector2.new(-0.05, 1.0),
+            Vector2.new(-0.2, 0.95),
+            Vector2.new(-0.3, 0.8),
+            Vector2.new(-0.35, 0.6),
+            Vector2.new(-0.25, 0.4),
+            Vector2.new(-0.15, 0.3),
+        },
+        RecoilJitter = 0.08, -- ±0.04 horizontal jitter on top of pattern
     },
     Shotgun = {
         Category = "Primary",
@@ -872,6 +890,53 @@ function PlayerDataManager:GetRank(ELO)
     return "Bronze"
 end
 
+-- ELO update on match result. K-factor depends on placement status + rank.
+-- Per-player delta uses each player's own K against the opposing team's average
+-- (so a Diamond on a Bronze team still gains little for stomping).
+function PlayerDataManager:ApplyMatchResult(WinnersList, LosersList)
+    local function getK(profile)
+        if (profile.PlacementMatches or 0) < 30 then
+            return 40
+        end
+        local r = profile.ELO or 1000
+        if r >= 4000 then
+            return 16
+        end
+        if r >= 2400 then
+            return 24
+        end
+        return 32
+    end
+    local function avg(list)
+        if #list == 0 then
+            return 1000
+        end
+        local sum = 0
+        for _, p in ipairs(list) do
+            sum = sum + (self:GetData(p).ELO or 1000)
+        end
+        return sum / #list
+    end
+    local winAvg = avg(WinnersList)
+    local lossAvg = avg(LosersList)
+    for _, p in ipairs(WinnersList) do
+        local data = self:GetData(p)
+        local k = getK(data)
+        local expected = 1 / (1 + 10 ^ ((lossAvg - (data.ELO or 1000)) / 400))
+        data.ELO = math.floor((data.ELO or 1000) + k * (1 - expected) + 0.5)
+        data.RankedWins = (data.RankedWins or 0) + 1
+        data.PlacementMatches = (data.PlacementMatches or 0) + 1
+    end
+    for _, p in ipairs(LosersList) do
+        local data = self:GetData(p)
+        local k = getK(data)
+        local expected = 1 / (1 + 10 ^ ((winAvg - (data.ELO or 1000)) / 400))
+        data.ELO = math.max(0, math.floor((data.ELO or 1000) + k * (0 - expected) + 0.5))
+        data.RankedLosses = (data.RankedLosses or 0) + 1
+        data.PlacementMatches = (data.PlacementMatches or 0) + 1
+    end
+end
+
 function PlayerDataManager:CanPlayRanked(Player)
     local Data = self:GetData(Player)
     local AccountAge = os.time() - Player.AccountAge * 86400
@@ -1100,10 +1165,24 @@ function WeaponSystem:Fire()
     return true
 end
 
+-- Hybrid recoil: 85% deterministic pattern + 15% jitter (Valorant model).
+-- Weapons that don't define a RecoilPattern fall back to legacy RNG so the
+-- existing un-patterned weapons (Sniper, Bow, etc.) still work.
 function WeaponSystem:ApplyRecoil()
-    local RecoilX = (math.random() - 0.5) * self.WeaponData.Recoil * 2
-    local RecoilY = self.WeaponData.Recoil * math.random()
-    self.RecoilOffset = self.RecoilOffset + Vector2.new(RecoilX, RecoilY)
+    local pattern = self.WeaponData.RecoilPattern
+    if pattern and #pattern > 0 then
+        local idx = ((self.State.BurstCount or 0) % #pattern) + 1
+        local base = pattern[idx]
+        local jitterMag = self.WeaponData.RecoilJitter or 0.05
+        local jitterX = (math.random() - 0.5) * jitterMag
+        self.RecoilOffset = self.RecoilOffset + base + Vector2.new(jitterX, 0)
+        self.State.BurstCount = (self.State.BurstCount or 0) + 1
+        self.State.LastFireTime = tick()
+    else
+        local RecoilX = (math.random() - 0.5) * self.WeaponData.Recoil * 2
+        local RecoilY = self.WeaponData.Recoil * math.random()
+        self.RecoilOffset = self.RecoilOffset + Vector2.new(RecoilX, RecoilY)
+    end
 end
 
 function WeaponSystem:UpdateSpread()
@@ -1156,10 +1235,24 @@ function WeaponSystem:GetSpread()
     return self.SpreadOffset
 end
 
+-- Time-gated decay: only decay between shots, not WHILE firing — otherwise
+-- the recoil pattern can never accumulate visibly. After 50ms of no-fire,
+-- decay by ~8% per frame at 60Hz. Also resets BurstCount after 300ms idle
+-- so the pattern restarts from shot 1 on next burst.
 function WeaponSystem:GetRecoil()
-    local Recoil = self.RecoilOffset
-    self.RecoilOffset = Vector2.new(self.RecoilOffset.X * 0.8, self.RecoilOffset.Y * 0.8)
-    return Recoil
+    local now = os.clock()
+    local lastFire = self.State.LastFireTime or 0
+    local sinceLastFire = now - lastFire
+    if sinceLastFire > 0.05 then
+        local dt = now - (self._LastRecoilDecay or now)
+        self._LastRecoilDecay = now
+        local k = 0.92 ^ (dt * 60)
+        self.RecoilOffset = Vector2.new(self.RecoilOffset.X * k, self.RecoilOffset.Y * k)
+    end
+    if sinceLastFire > 0.3 then
+        self.State.BurstCount = 0
+    end
+    return self.RecoilOffset
 end
 
 function WeaponSystem:HasDoubleJump()
@@ -1222,6 +1315,21 @@ function CombatSystem:TakeDamage(Damage, Attacker, HitPart)
 
     self.Health = math.max(0, self.Health - ActualDamage)
     self.LastDamageTime = tick()
+
+    -- Tagging: on hit, scale victim WalkSpeed by 0.7 for TagDuration so
+    -- whoever shoots first wins the strafe duel (CS2 "peeker's advantage" fix).
+    if self.Humanoid and self.Humanoid.WalkSpeed > 0 then
+        local originalSpeed = self.Humanoid.WalkSpeed
+        self._TagOriginalSpeed = self._TagOriginalSpeed or originalSpeed
+        self.Humanoid.WalkSpeed = self._TagOriginalSpeed * 0.7
+        task.delay(CONFIG.Combat.TagDuration, function()
+            -- Only restore if no fresher tag happened in between.
+            if self.Humanoid and (tick() - self.LastDamageTime) >= CONFIG.Combat.TagDuration then
+                self.Humanoid.WalkSpeed = self._TagOriginalSpeed
+                self._TagOriginalSpeed = nil
+            end
+        end)
+    end
 
     if self.Health <= 0 then
         self:Die(Attacker)
@@ -1291,6 +1399,17 @@ function CombatSystem:Update(DeltaTime)
         if self.KnockbackVelocity.Magnitude < 0.1 then
             self.KnockbackVelocity = Vector3.new()
         end
+    end
+
+    -- Halo-style armor regen: after ArmorRegenDelay seconds out of combat,
+    -- armor refills at ArmorRegenRate per second. Health does NOT regen
+    -- (T1-M5 spec — encourages pickup/healthpack design later).
+    if
+        not self.IsDead
+        and self.Armor < CONFIG.Combat.MaxArmor
+        and (tick() - self.LastDamageTime) >= CONFIG.Combat.ArmorRegenDelay
+    then
+        self:AddArmor(CONFIG.Combat.ArmorRegenRate * DeltaTime)
     end
 end
 
@@ -1522,11 +1641,23 @@ function LobbySystem:StartMatch(QueueType)
         table.insert(MatchPlayers, table.remove(self.Queues[QueueType], 1))
     end
 
+    -- Snake-draft team balance by ELO. Sort descending, then assign in pattern
+    -- 1,2,2,1,1,2,2,1,... which minimizes |sum(Team1) - sum(Team2)| in O(n log n).
+    -- For modes where ELO isn't relevant (Special), the order is preserved.
+    local pdm = PlayerDataManager.new()
+    table.sort(MatchPlayers, function(a, b)
+        local aData = pdm:GetData(a)
+        local bData = pdm:GetData(b)
+        return (aData.ELO or 1000) > (bData.ELO or 1000)
+    end)
+
     local Team1 = {}
     local Team2 = {}
+    local SNAKE = { 1, 2, 2, 1, 1, 2, 2, 1, 1, 2 } -- supports up to 10 players
 
     for i, Player in ipairs(MatchPlayers) do
-        if i % 2 == 1 then
+        local target = SNAKE[i] or ((i - 1) % 2 + 1)
+        if target == 1 then
             table.insert(Team1, Player)
         else
             table.insert(Team2, Player)
@@ -2089,13 +2220,108 @@ function ClientController:ProcessShot()
         FireWeapon:FireServer(self.Weapon.WeaponName, AimDirection)
     end
 
-    -- Optional: client-side visual raycast (tracer line) — kept around for the
-    -- HUD/cosmetics layer to consume; does not touch any state.
+    -- Client-side visual raycast (cosmetic only; never applies damage).
     local Params = RaycastParams.new()
     Params.FilterDescendantInstances = { self.Character }
     Params.FilterType = Enum.RaycastFilterType.Exclude
     local Result = workspace:Raycast(self.Camera.CFrame.Position, AimDirection * self.Weapon.WeaponData.Range, Params)
-    self.LastShotResult = Result -- HUD can read this to draw a tracer or hit marker.
+    self.LastShotResult = Result
+
+    self:SpawnShotVisuals(Result, AimDirection)
+end
+
+-- Spawns muzzle flash + tracer beam + impact particles per the T2-M2 spec.
+-- Pure cosmetic; cleanup via Debris. Skips if Character/Camera absent.
+function ClientController:SpawnShotVisuals(Result, AimDirection)
+    local Debris = game:GetService("Debris")
+    local char = self.Character
+    if not (char and char:FindFirstChild("HumanoidRootPart")) then
+        return
+    end
+    local muzzlePos = char.HumanoidRootPart.Position
+        + char.HumanoidRootPart.CFrame.LookVector * 2
+        + Vector3.new(0, 1.2, 0)
+    local endPos = Result and Result.Position
+        or (self.Camera.CFrame.Position + AimDirection * self.Weapon.WeaponData.Range)
+
+    -- Muzzle flash: short-lived PointLight + invisible part for attachment
+    local flash = Instance.new("Part")
+    flash.Anchored = true
+    flash.CanCollide = false
+    flash.Transparency = 1
+    flash.Size = Vector3.new(0.2, 0.2, 0.2)
+    flash.Position = muzzlePos
+    flash.Parent = workspace
+    local light = Instance.new("PointLight")
+    light.Brightness = 4
+    light.Range = 12
+    light.Color = Color3.fromRGB(255, 200, 120)
+    light.Parent = flash
+    Debris:AddItem(flash, 0.05)
+
+    -- Tracer beam: two anchored parts at endpoints, Beam between them
+    local a0Part = Instance.new("Part")
+    a0Part.Anchored = true
+    a0Part.CanCollide = false
+    a0Part.Transparency = 1
+    a0Part.Size = Vector3.new(0.1, 0.1, 0.1)
+    a0Part.Position = muzzlePos
+    a0Part.Parent = workspace
+    local a1Part = Instance.new("Part")
+    a1Part.Anchored = true
+    a1Part.CanCollide = false
+    a1Part.Transparency = 1
+    a1Part.Size = Vector3.new(0.1, 0.1, 0.1)
+    a1Part.Position = endPos
+    a1Part.Parent = workspace
+    local att0 = Instance.new("Attachment")
+    att0.Parent = a0Part
+    local att1 = Instance.new("Attachment")
+    att1.Parent = a1Part
+    local beam = Instance.new("Beam")
+    beam.Attachment0 = att0
+    beam.Attachment1 = att1
+    beam.Width0 = 0.15
+    beam.Width1 = 0.05
+    beam.FaceCamera = true
+    beam.LightEmission = 1
+    beam.LightInfluence = 0
+    beam.Color = ColorSequence.new(Color3.fromRGB(255, 230, 160))
+    beam.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(0.7, 0.2),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    beam.Parent = a0Part
+    Debris:AddItem(a0Part, 0.08)
+    Debris:AddItem(a1Part, 0.08)
+
+    -- Impact effect at hit point
+    if Result and Result.Instance then
+        local impactPart = Instance.new("Part")
+        impactPart.Anchored = true
+        impactPart.CanCollide = false
+        impactPart.Transparency = 1
+        impactPart.Size = Vector3.new(0.2, 0.2, 0.2)
+        impactPart.Position = endPos
+        impactPart.Parent = workspace
+        local attach = Instance.new("Attachment")
+        attach.Parent = impactPart
+        local emit = Instance.new("ParticleEmitter")
+        emit.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+        emit.Lifetime = NumberRange.new(0.15, 0.3)
+        emit.Rate = 0
+        emit.Speed = NumberRange.new(8, 15)
+        emit.SpreadAngle = Vector2.new(40, 40)
+        emit.Color = ColorSequence.new(Color3.fromRGB(255, 180, 80), Color3.fromRGB(255, 60, 30))
+        emit.Size = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.4),
+            NumberSequenceKeypoint.new(1, 0),
+        })
+        emit.Parent = attach
+        emit:Emit(12)
+        Debris:AddItem(impactPart, 0.5)
+    end
 end
 
 function ClientController:UpdateCamera()

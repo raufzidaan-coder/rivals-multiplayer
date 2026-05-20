@@ -477,6 +477,43 @@ function Server:Start()
         VoiceChatService.UseAudioApi = Enum.AudioApiRollout.Enabled
     end)
 
+    -- Lighting + post-FX preset per T2-M6 research (Valorant-style clarity).
+    pcall(function()
+        local Lighting = game:GetService("Lighting")
+        Lighting.Technology = Enum.Technology.ShadowMap
+        Lighting.ClockTime = 14.5
+        Lighting.Brightness = 2
+        Lighting.Ambient = Color3.fromRGB(70, 70, 75)
+        Lighting.OutdoorAmbient = Color3.fromRGB(110, 115, 125)
+        Lighting.GlobalShadows = true
+        Lighting.ShadowSoftness = 0.2
+        Lighting.EnvironmentDiffuseScale = 0.4
+        Lighting.EnvironmentSpecularScale = 0.2
+        Lighting.FogStart = 400
+        Lighting.FogEnd = 1200
+        Lighting.FogColor = Color3.fromRGB(190, 195, 200)
+
+        local function ensure(className, props)
+            local existing = Lighting:FindFirstChildOfClass(className)
+            if not existing then
+                existing = Instance.new(className)
+                existing.Parent = Lighting
+            end
+            for k, v in pairs(props) do
+                existing[k] = v
+            end
+        end
+        ensure("BloomEffect", { Intensity = 0.3, Size = 12, Threshold = 1.4 })
+        ensure("ColorCorrectionEffect", {
+            Saturation = 0.15,
+            Contrast = 0.12,
+            Brightness = 0.02,
+            TintColor = Color3.fromRGB(255, 250, 245),
+        })
+        ensure("Atmosphere", { Density = 0.25, Offset = 0.1, Haze = 1.2, Glare = 0 })
+        -- DepthOfField intentionally omitted: distance blur is fatal for FPS.
+    end)
+
     self:SetupRemoteListeners()
 
     Players.PlayerAdded:Connect(function(Player)
