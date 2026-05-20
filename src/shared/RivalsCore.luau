@@ -2132,7 +2132,13 @@ function ClientController:SetupInput()
 end
 
 function ClientController:SetupCamera()
-    self.Camera.CameraType = Enum.CameraType.Scriptable
+    -- Scriptable mode disables Roblox's default camera handler — and the custom
+    -- replacement that was supposed to drive it (UpdateCamera below) only reads
+    -- state, never writes self.Camera.CFrame. Result: frozen camera + locked
+    -- view. Use Custom mode so the default character controller drives the
+    -- camera (third-person, follows character). For first-person FPS feel,
+    -- LockFirstPerson can be set on StarterPlayer or per-player.
+    self.Camera.CameraType = Enum.CameraType.Custom
     self.Camera.FieldOfView = self.Settings.FOV
 end
 
