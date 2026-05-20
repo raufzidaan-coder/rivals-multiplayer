@@ -2085,6 +2085,12 @@ function ClientController:SetupInput()
         else
             self.Input.Jump = false
         end
+        -- Pass the input through to Roblox's default jump handler. Without
+        -- this the BindAction sinks Space and our :Jump() must produce the
+        -- entire jump itself — which it does on paper via ChangeState(Jumping),
+        -- but that fails silently in some Studio states. Letting the default
+        -- handler run alongside guarantees the jump physics fires.
+        return Enum.ContextActionResult.Pass
     end, IsTouch, Enum.KeyCode.Space, Enum.KeyCode.ButtonA)
 
     ContextActionService:BindAction("Sprint", function(_, _, InputState)
