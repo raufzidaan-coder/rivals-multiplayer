@@ -1242,6 +1242,41 @@ function WeaponSystem:SetADS(Enabled)
     if Enabled then
         self.SpreadOffset = Vector2.new()
     end
+    -- ADS animation (T4-M3 spec): tween camera FOV + Tool.Grip to eye level.
+    -- Camera and Tool reads run client-side; SetADS is called from
+    -- ClientController so workspace.CurrentCamera resolves.
+    local TweenService = game:GetService("TweenService")
+    local camera = workspace.CurrentCamera
+    if not camera then
+        return
+    end
+    if self._ADSTween then
+        self._ADSTween:Cancel()
+    end
+    local targetFOV = Enabled and 50 or 70
+    self._ADSTween = TweenService:Create(camera, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        FieldOfView = targetFOV,
+    })
+    self._ADSTween:Play()
+
+    -- Tool.Grip nudge: find the equipped Tool on the character and tween its Grip.
+    -- Resting Grip is cached on the Tool itself as attribute "BaseGrip" by EquipWeapon.
+    if not self.Character then
+        return
+    end
+    local tool = self.Character:FindFirstChildOfClass("Tool")
+    if not tool then
+        return
+    end
+    local baseGrip = tool:GetAttribute("BaseGrip")
+    if not baseGrip then
+        tool:SetAttribute("BaseGrip", tool.Grip)
+        baseGrip = tool.Grip
+    end
+    local adsGrip = baseGrip * CFrame.new(0, 0.2, -0.4)
+    TweenService:Create(tool, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Grip = Enabled and adsGrip or baseGrip,
+    }):Play()
 end
 
 function WeaponSystem:GetSpread()
@@ -1386,6 +1421,31 @@ function CombatSystem:Die(Attacker)
     self.IsDead = true
     if self.Humanoid then
         self.Humanoid.Health = 0
+    end
+
+    -- VFX hook: broadcast a DeathEffect to all clients with the death position
+    -- so they can spawn flash + particle burst + sound. Server-only (clients
+    -- can't FireAllClients). Guarded so the shared module is still safe to
+    -- require on the client. Position falls back to Humanoid.RootPart, then
+    -- to any BasePart on the character, before bailing.
+    local RunService = game:GetService("RunService")
+    if RunService:IsServer() then
+        local deathPos
+        local root = self.Character and self.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            deathPos = root.Position
+        elseif self.Character then
+            local anyPart = self.Character:FindFirstChildWhichIsA("BasePart")
+            if anyPart then
+                deathPos = anyPart.Position
+            end
+        end
+        if deathPos then
+            local deathEvent = ReplicatedStorage:FindFirstChild("DeathEffect")
+            if deathEvent then
+                deathEvent:FireAllClients(deathPos)
+            end
+        end
     end
 
     local Player = Players:GetPlayerFromCharacter(self.Character)
@@ -2058,6 +2118,92 @@ function ClientController:Initialize()
 
     self:SetupInput()
     self:SetupCamera()
+    self:SetupDeathEffectListener()
+end
+
+-- Subscribes to the server's DeathEffect RemoteEvent and plays VFX at the
+-- corpse position. Listener-only; safe to call once per client lifetime.
+function ClientController:SetupDeathEffectListener()
+    local deathEvent = ReplicatedStorage:WaitForChild("DeathEffect", 10)
+    if not deathEvent then
+        return
+    end
+    deathEvent.OnClientEvent:Connect(function(pos)
+        if typeof(pos) == "Vector3" then
+            self:PlayDeathEffect(pos)
+        end
+    end)
+end
+
+-- Brief flash (PointLight) + particle burst + sound at a world position.
+-- Matches the visual language of SpawnShotVisuals (anchored host part +
+-- Debris cleanup) so VFX feel cohesive. ~0.5s lifespan total.
+function ClientController:PlayDeathEffect(position)
+    local Debris = game:GetService("Debris")
+
+    local host = Instance.new("Part")
+    host.Anchored = true
+    host.CanCollide = false
+    host.CanQuery = false
+    host.CanTouch = false
+    host.Transparency = 1
+    host.Size = Vector3.new(0.2, 0.2, 0.2)
+    host.Position = position
+    host.Parent = workspace
+
+    -- Flash: bright warm point light, decays fast
+    local light = Instance.new("PointLight")
+    light.Brightness = 8
+    light.Range = 18
+    light.Color = Color3.fromRGB(255, 150, 80)
+    light.Parent = host
+
+    -- Particle burst: radial spark/ember
+    local attach = Instance.new("Attachment")
+    attach.Parent = host
+    local emit = Instance.new("ParticleEmitter")
+    emit.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+    emit.Lifetime = NumberRange.new(0.3, 0.6)
+    emit.Rate = 0
+    emit.Speed = NumberRange.new(14, 22)
+    emit.SpreadAngle = Vector2.new(180, 180)
+    emit.Rotation = NumberRange.new(0, 360)
+    emit.RotSpeed = NumberRange.new(-180, 180)
+    emit.Color = ColorSequence.new(Color3.fromRGB(255, 200, 100), Color3.fromRGB(200, 40, 30))
+    emit.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.8),
+        NumberSequenceKeypoint.new(1, 0),
+    })
+    emit.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    emit.LightEmission = 0.6
+    emit.Parent = attach
+    emit:Emit(28)
+
+    -- Sound: short impact thud. Uses a default Roblox asset so no upload step.
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxasset://sounds/impact_explosion.mp3"
+    sound.Volume = 1.2
+    sound.RollOffMode = Enum.RollOffMode.InverseTapered
+    sound.RollOffMaxDistance = 120
+    sound.Parent = host
+    sound:Play()
+
+    -- Decay the light over its lifetime so the flash feels instant rather
+    -- than a held spotlight.
+    task.spawn(function()
+        local steps = 6
+        for i = 1, steps do
+            task.wait(0.03)
+            if light.Parent then
+                light.Brightness = 8 * (1 - i / steps)
+            end
+        end
+    end)
+
+    Debris:AddItem(host, 1.0)
 end
 
 function ClientController:SetupInput()
@@ -2154,6 +2300,36 @@ function ClientController:SetupInput()
             UseAbility:FireServer("QuickMelee")
         end
     end, IsTouch, Enum.KeyCode.F, Enum.KeyCode.ButtonY)
+
+    -- Inspect (T key / D-Pad Right): plays a one-shot weapon flip + hold.
+    -- Tweens Tool.Grip to a rotated pose for 1.2s then back. Gated so it
+    -- can't trigger mid-reload or mid-ADS.
+    ContextActionService:BindAction("Inspect", function(_, _, InputState)
+        if InputState ~= Enum.UserInputState.Begin then
+            return
+        end
+        if not (self.Character and self.Weapon) then
+            return
+        end
+        if self.Weapon.State.IsReloading or self.Weapon.State.IsADS then
+            return
+        end
+        local tool = self.Character:FindFirstChildOfClass("Tool")
+        if not tool then
+            return
+        end
+        local base = tool:GetAttribute("BaseGrip") or tool.Grip
+        tool:SetAttribute("BaseGrip", base)
+        local flipped = base * CFrame.new(-0.3, 0.1, -0.2) * CFrame.Angles(0, math.rad(60), math.rad(-25))
+        local TS = game:GetService("TweenService")
+        TS:Create(tool, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Grip = flipped }):Play()
+        task.delay(0.8, function()
+            if tool.Parent then
+                TS:Create(tool, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), { Grip = base })
+                    :Play()
+            end
+        end)
+    end, IsTouch, Enum.KeyCode.T, Enum.KeyCode.DPadRight)
 
     -- Mouse rotation is intentionally NOT bound here. The previous code piped
     -- UserInputService.InputChanged into OnMouseMove which wrote to

@@ -90,6 +90,13 @@ function Server:CreateRemoteEvents()
     Events.HitConfirm.Name = "HitConfirm"
     Events.HitConfirm.Parent = ReplicatedStorage
 
+    -- DeathEffect fires to ALL clients when any player dies; carries the world
+    -- position so clients can spawn a brief flash + particle burst + sound at
+    -- the corpse. VFX-only — does not affect gameplay state.
+    Events.DeathEffect = Instance.new("RemoteEvent")
+    Events.DeathEffect.Name = "DeathEffect"
+    Events.DeathEffect.Parent = ReplicatedStorage
+
     return Events
 end
 
