@@ -128,6 +128,7 @@ The source in `src/` has these fixes already applied versus the original Rivals 
 15. `LobbyPads.luau` — `Enum.MeshType.Box` (not a real enum value) → `Enum.MeshType.Brick`. Caused pad mesh creation to error at runtime.
 16. `Settings.luau` — default keybinds `ADS = Enum.KeyCode.MouseButton2` and `Fire = Enum.KeyCode.MouseButton1` (same family of bug as #12 — mouse buttons live on `UserInputType`, not `KeyCode`) → switched to `Enum.UserInputType.MouseButton{1,2}`. Without this fix, any code reading `Settings.Data.PC.Keybinds.Fire` / `.ADS` to bind would error.
 17. `RivalsCore.luau` — `ClientController:Update` had duplicate if/elseif branches: `if Fire and not ADS then Fire() ... elseif ADS and Fire then Fire() ... end` — both branches identical → collapsed to a single `if Fire then ...` (the ADS state is consumed by `WeaponSystem:Fire()` internally via `self.State.IsADS`, no need to gate at the caller).
+18. `RivalsCore.luau` — `ClientController:SetupInput` bound W/A/S/D via `ContextActionService:BindAction` with sink-by-default callbacks that only wrote `self.Input.Forward/Backward/Left/Right` (which nothing reads). After fix #11 made `SetupInput` actually run successfully, those bindings activated and **swallowed WASD before Roblox's default character controller saw them — character couldn't move**. Removed the 4 dead bindings; Roblox's default controller handles WASD again. Jump (Space) keeps its binding because `MovementSystem:Jump()` tracks double-jump state.
 
 If you ever re-paste the originals on top, re-apply all of these.
 

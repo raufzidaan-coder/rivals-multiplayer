@@ -1861,21 +1861,13 @@ end
 function ClientController:SetupInput()
     local ContextActionService = game:GetService("ContextActionService")
 
-    ContextActionService:BindAction("MoveForward", function(_, _, InputState)
-        self.Input.Forward = InputState == Enum.UserInputState.Begin
-    end, false, Enum.KeyCode.W)
-
-    ContextActionService:BindAction("MoveBackward", function(_, _, InputState)
-        self.Input.Backward = InputState == Enum.UserInputState.Begin
-    end, false, Enum.KeyCode.S)
-
-    ContextActionService:BindAction("MoveLeft", function(_, _, InputState)
-        self.Input.Left = InputState == Enum.UserInputState.Begin
-    end, false, Enum.KeyCode.A)
-
-    ContextActionService:BindAction("MoveRight", function(_, _, InputState)
-        self.Input.Right = InputState == Enum.UserInputState.Begin
-    end, false, Enum.KeyCode.D)
+    -- WASD intentionally NOT bound here. The previous Enum.InputState typo crashed
+    -- SetupInput before reaching the movement keys, so Roblox's default character
+    -- controller silently handled WASD. Once that crash was fixed (fix #11), the
+    -- WASD binds activated and started sinking the keys, blocking default
+    -- movement. The bindings only set self.Input.Forward/Backward/Left/Right —
+    -- which nothing else reads — so deleting them is a pure cleanup. Roblox's
+    -- default controller now sees WASD again.
 
     ContextActionService:BindAction("Jump", function(_, _, InputState)
         if InputState == Enum.UserInputState.Begin then
