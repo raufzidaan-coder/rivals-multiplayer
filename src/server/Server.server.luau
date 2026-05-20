@@ -19,6 +19,7 @@ if RunService:IsStudio() then
 end
 
 local RivalsCore = require(ReplicatedStorage:WaitForChild("RivalsCore"))
+local WeaponModels = require(script.Parent:WaitForChild("WeaponModels"))
 
 local Server = {}
 Server.__index = Server
@@ -163,10 +164,39 @@ function Server:OnCharacterAdded(Player, Character)
     self.PlayerCombat[Player] = RivalsCore.CombatSystem.new(Character)
 
     self:ApplyTeamVisuals(Player, Character)
+    self:GiveLoadout(Player)
 
     task.delay(0.1, function()
         self:SpawnInLobby(Player)
     end)
+end
+
+-- Populates the player's Backpack with one Tool per weapon they own.
+-- Built fresh each spawn via WeaponModels.Build (Fists returns nil — bare hands
+-- intended). Roblox auto-handles tool selection via number keys (1-6).
+function Server:GiveLoadout(Player)
+    local backpack = Player:FindFirstChildOfClass("Backpack")
+    if not backpack then
+        return
+    end
+    backpack:ClearAllChildren()
+    -- Also strip currently-equipped tool from Character (carries over respawns)
+    if Player.Character then
+        for _, child in ipairs(Player.Character:GetChildren()) do
+            if child:IsA("Tool") then
+                child:Destroy()
+            end
+        end
+    end
+
+    local data = self.DataManager:GetData(Player)
+    local owned = (data.Inventory and data.Inventory.Weapons) or data.WeaponsOwned or {}
+    for _, weaponName in ipairs(owned) do
+        local tool = WeaponModels.Build(weaponName)
+        if tool then
+            tool.Parent = backpack
+        end
+    end
 end
 
 -- Server-authoritative shot pipeline. Client sends aim direction + weapon name;
