@@ -2155,11 +2155,13 @@ function ClientController:SetupInput()
         end
     end, IsTouch, Enum.KeyCode.F, Enum.KeyCode.ButtonY)
 
-    UserInputService.InputChanged:Connect(function(Input)
-        if Input.UserInputType == Enum.UserInputType.MouseMovement then
-            self:OnMouseMove(Input.Position)
-        end
-    end)
+    -- Mouse rotation is intentionally NOT bound here. The previous code piped
+    -- UserInputService.InputChanged into OnMouseMove which wrote to
+    -- self.Camera.CFrame on every mouse movement — fighting Roblox's default
+    -- camera handler. Worse, Input.Position is the ABSOLUTE mouse coordinate
+    -- (not a delta), so the camera spun by ~200 degrees per frame whenever
+    -- the mouse moved. Default Custom camera handles rotation correctly on
+    -- its own; we don't need to touch CFrame.
 end
 
 function ClientController:SetupCamera()
@@ -2173,20 +2175,11 @@ function ClientController:SetupCamera()
     self.Camera.FieldOfView = self.Settings.FOV
 end
 
-function ClientController:OnMouseMove(Delta)
-    if self.Player.Character and self.Player.Character:FindFirstChild("Humanoid") then
-        local _CameraOffset = self.Player.Character:FindFirstChild("Humanoid").CameraOffset
-        local Sensitivity = self.Settings.MouseSensitivity
-
-        if self.Input.ADS then
-            Sensitivity = Sensitivity * self.Settings.ADSSensitivityMultiplier
-        end
-
-        self.Camera.CFrame = self.Camera.CFrame
-            * CFrame.Angles(0, math.rad(Delta.X * Sensitivity * 0.1), 0)
-            * CFrame.Angles(math.rad(Delta.Y * Sensitivity * 0.1), 0, 0)
-    end
-end
+-- OnMouseMove removed: the original implementation rotated the camera by the
+-- ABSOLUTE mouse position (not a delta) which made the camera spin wildly,
+-- and it also fought Roblox's default camera handler. ADS-sensitivity scaling
+-- can be implemented later via UserGameSettings.MouseSensitivity (without
+-- touching Camera.CFrame), or by setting a CameraOffset on the Humanoid.
 
 function ClientController:EquipWeapon(Slot)
     -- Singleton; server's cache is the source of truth — client just reads it.
