@@ -1331,13 +1331,25 @@ function CombatSystem:TakeDamage(Damage, Attacker, HitPart)
 
     -- Tagging: on hit, scale victim WalkSpeed by 0.7 for TagDuration so
     -- whoever shoots first wins the strafe duel (CS2 "peeker's advantage" fix).
+    -- Multi-hit safety: if the original speed was already captured, don't
+    -- re-capture (would compound). Restoration is guarded by a NIL check on
+    -- _TagOriginalSpeed because a fresher restoration might have already
+    -- nilled it — without the guard, that race throws "nil cannot be converted
+    -- to number" when assigning to WalkSpeed.
     if self.Humanoid and self.Humanoid.WalkSpeed > 0 then
         local originalSpeed = self.Humanoid.WalkSpeed
-        self._TagOriginalSpeed = self._TagOriginalSpeed or originalSpeed
-        self.Humanoid.WalkSpeed = self._TagOriginalSpeed * 0.7
+        if not self._TagOriginalSpeed then
+            self._TagOriginalSpeed = originalSpeed
+        end
+        local capturedOriginal = self._TagOriginalSpeed
+        self.Humanoid.WalkSpeed = capturedOriginal * 0.7
         task.delay(CONFIG.Combat.TagDuration, function()
-            -- Only restore if no fresher tag happened in between.
-            if self.Humanoid and (tick() - self.LastDamageTime) >= CONFIG.Combat.TagDuration then
+            if
+                self.Humanoid
+                and self.Humanoid.Parent
+                and self._TagOriginalSpeed
+                and (tick() - self.LastDamageTime) >= CONFIG.Combat.TagDuration
+            then
                 self.Humanoid.WalkSpeed = self._TagOriginalSpeed
                 self._TagOriginalSpeed = nil
             end

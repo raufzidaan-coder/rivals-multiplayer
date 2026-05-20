@@ -20,8 +20,13 @@ return TestRunner.describe("CONFIG + WEAPONS", function(it)
         expect.equal(RivalsCore.CONFIG.Combat.HeadshotMultiplier, 2.0)
         expect.equal(RivalsCore.CONFIG.Combat.MaxHealth, 100)
         expect.equal(RivalsCore.CONFIG.Combat.MaxArmor, 50)
-        expect.equal(RivalsCore.CONFIG.Combat.ArmorDamageReduction, 0.5)
+        -- ArmorDamageReduction bumped 0.5 -> 0.66 in the polish wave (Valorant parity, T1-M5).
+        expect.equal(RivalsCore.CONFIG.Combat.ArmorDamageReduction, 0.66)
         expect.falsy(RivalsCore.CONFIG.Combat.FallDamageEnabled)
+        -- New tagging + regen fields added in polish wave.
+        expect.equal(RivalsCore.CONFIG.Combat.TagDuration, 0.25)
+        expect.equal(RivalsCore.CONFIG.Combat.ArmorRegenDelay, 5)
+        expect.equal(RivalsCore.CONFIG.Combat.ArmorRegenRate, 15)
     end)
 
     it("CONFIG.Game values match docs", function(expect)
@@ -53,12 +58,16 @@ return TestRunner.describe("CONFIG + WEAPONS", function(it)
     it("AssaultRifle has expected stats", function(expect)
         local ar = RivalsCore.WEAPONS.AssaultRifle
         expect.equal(ar.Damage, 15)
-        expect.equal(ar.FireRate, 0.1)
+        -- FireRate tightened 0.1 -> 0.07 in Sprint 1 (Valorant Vandal TTK parity).
+        expect.equal(ar.FireRate, 0.07)
         expect.equal(ar.Magazine, 30)
         expect.equal(ar.Reserve, 90)
         expect.equal(ar.ReloadTime, 2.5)
         expect.equal(ar.Category, "Primary")
         expect.equal(ar.BulletType, "Hitscan")
+        -- 8-shot RecoilPattern added in the polish wave.
+        expect.equal(type(ar.RecoilPattern), "table")
+        expect.equal(#ar.RecoilPattern, 8)
     end)
 
     it("Sniper one-shots full-HP target via headshot", function(expect)
