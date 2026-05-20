@@ -67,7 +67,7 @@ local WEAPONS = {
         Category = "Primary",
         Rarity = "Standard",
         Damage = 15,
-        FireRate = 0.1,
+        FireRate = 0.07, -- was 0.1 — TTK 0.6s -> 0.42s, matches Valorant Vandal
         Magazine = 30,
         Reserve = 90,
         ADS = true,
@@ -101,14 +101,14 @@ local WEAPONS = {
     Sniper = {
         Category = "Primary",
         Rarity = "Standard",
-        Damage = 100,
+        Damage = 85, -- was 100 — no longer body-shot one-taps full HP; rewards headshot aim
         FireRate = 1.5,
         Magazine = 5,
         Reserve = 15,
         ADS = true,
         Automatic = false,
         Recoil = 1.2,
-        Range = 500,
+        Range = 350, -- was 500 — forces sniper to commit to lanes (Apex/Battlefield design)
         HipSpread = 0.5,
         ADSSpread = 0.001,
         ReloadTime = 4.0,
@@ -137,7 +137,7 @@ local WEAPONS = {
     Bow = {
         Category = "Primary",
         Rarity = "Standard",
-        Damage = 50,
+        Damage = 65, -- was 50 — viable 1-shot-headshot / 2-shot-body
         FireRate = 1.2,
         Magazine = 1,
         Reserve = 12,
@@ -149,7 +149,7 @@ local WEAPONS = {
         ADSSpread = 0.01,
         ReloadTime = 2.0,
         BulletType = "Projectile",
-        Speed = 250,
+        Speed = 600, -- was 250 — was easily dodgeable; bumped to skill-pick territory
         HasDoubleJump = true,
     },
     Crossbow = {
@@ -337,7 +337,7 @@ local WEAPONS = {
         Category = "Secondary",
         Rarity = "Standard",
         Damage = 20,
-        FireRate = 0.2,
+        FireRate = 0.15, -- was 0.2 — TTK 0.8s -> 0.6s, viable as sidearm finisher
         Magazine = 12,
         Reserve = 48,
         ADS = true,
@@ -793,9 +793,21 @@ local WEAPONS = {
 local PlayerDataManager = {}
 PlayerDataManager.__index = PlayerDataManager
 
+-- Singleton enforcement: there is exactly one profile cache per server. The
+-- original code called PlayerDataManager.new() from multiple sites (Server,
+-- CombatSystem:Die, ClientController:EquipWeapon), each of which got its own
+-- empty {} cache — so kills/deaths/XP increments vanished into orphan tables.
+-- CLAUDE.md fix #5 cached the instance in Server.new() but didn't reach the
+-- other call sites. Making .new() a singleton fixes all of them at once.
+local _PdmInstance = nil
+
 function PlayerDataManager.new()
+    if _PdmInstance then
+        return _PdmInstance
+    end
     local self = setmetatable({}, PlayerDataManager)
     self.Data = {}
+    _PdmInstance = self
     return self
 end
 
@@ -1073,11 +1085,21 @@ function WeaponSystem:ApplyRecoil()
 end
 
 function WeaponSystem:UpdateSpread()
+    -- Spread accumulates as you keep firing; the old `=` was overwriting,
+    -- meaning sustained fire stayed as accurate as the first shot. Now spread
+    -- compounds and is decayed by ClientController:Update when not firing.
     local BaseSpread = self.State.IsADS and self.WeaponData.ADSSpread or self.WeaponData.HipSpread
     local CurrentSpread = BaseSpread + (self.SpreadOffset.Magnitude * 0.1)
     local AngleX = (math.random() - 0.5) * CurrentSpread * 360
     local AngleY = (math.random() - 0.5) * CurrentSpread * 360
-    self.SpreadOffset = Vector2.new(AngleX, AngleY)
+    self.SpreadOffset = self.SpreadOffset + Vector2.new(AngleX, AngleY) * 0.3
+end
+
+-- Decay accumulated spread back toward zero between shots. Caller (typically
+-- ClientController:Update) passes the frame dt. Mirrors the recoil decay model.
+function WeaponSystem:DecaySpread(dt)
+    local k = 0.92 ^ (dt * 60)
+    self.SpreadOffset = Vector2.new(self.SpreadOffset.X * k, self.SpreadOffset.Y * k)
 end
 
 function WeaponSystem:Reload()
@@ -1215,6 +1237,8 @@ function CombatSystem:Die(Attacker)
     if Player and Attacker then
         local AttackerPlayer = Players:GetPlayerFromCharacter(Attacker)
         if AttackerPlayer then
+            -- PlayerDataManager.new() is a singleton; this is the same cache as
+            -- Server.DataManager so the increments persist for the session.
             local DataManager = PlayerDataManager.new()
             local AttackerData = DataManager:GetData(AttackerPlayer)
             AttackerData.Kills = AttackerData.Kills + 1
@@ -1970,6 +1994,7 @@ function ClientController:OnMouseMove(Delta)
 end
 
 function ClientController:EquipWeapon(Slot)
+    -- Singleton; server's cache is the source of truth — client just reads it.
     local DataManager = PlayerDataManager.new()
     local Data = DataManager:GetData(self.Player)
     local WeaponName = Data.WeaponsOwned[Slot]

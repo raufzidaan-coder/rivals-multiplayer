@@ -348,6 +348,21 @@ function Server:Start()
         self:OnPlayerJoined(Player)
     end
 
+    -- The original code never connected GameModeManager:Update or per-player
+    -- CombatSystem:Update to Heartbeat — round timers, knockback decay, and
+    -- (future) armor regen were dead code. One Heartbeat connection fans out
+    -- to every system that wants a per-frame tick.
+    RunService.Heartbeat:Connect(function(dt)
+        debug.profilebegin("RivalsServerTick")
+        if self.GameMode then
+            self.GameMode:Update(dt)
+        end
+        for _, combat in pairs(self.PlayerCombat) do
+            combat:Update(dt)
+        end
+        debug.profileend()
+    end)
+
     print("[Rivals] Server started successfully")
 end
 
