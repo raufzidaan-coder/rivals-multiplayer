@@ -997,29 +997,42 @@ function MovementSystem:StopSlide()
     self.State.CurrentSpeed = self.State.IsSprinting and CONFIG.Movement.SprintSpeed or CONFIG.Movement.WalkSpeed
 end
 
+-- Roblox's Humanoid handles "is the character airborne" via FloorMaterial: if
+-- nil, the character is in the air. We use this rather than self.State.IsGrounded
+-- (which was never being updated). For the first jump we let Roblox's built-in
+-- jump physics run via Humanoid:ChangeState(Jumping) — that gives proper
+-- animation + jump-power-from-Humanoid. For double-jump (airborne + flag set)
+-- we set RootPart velocity directly since ChangeState(Jumping) won't fire mid-air.
 function MovementSystem:Jump()
-    if not self.State.IsGrounded then
-        if self.State.CanDoubleJump then
-            self.State.CanDoubleJump = false
-            self:applyVerticalVelocity(CONFIG.Movement.DoubleJumpPower)
-            return true
-        end
+    if not (self.RootPart and self.Humanoid) then
         return false
     end
 
-    self:applyVerticalVelocity(CONFIG.Movement.JumpPower)
-    self.State.CanDoubleJump = true
+    local airborne = self.Humanoid.FloorMaterial == Enum.Material.Air or self.Humanoid.FloorMaterial == nil
 
-    if self.State.HasWeaponDoubleJump then
-        self.State.CanDoubleJump = true
+    if not airborne then
+        -- First jump: defer to Roblox's built-in. Track for double-jump.
+        self.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        self.State.CanDoubleJump = self.State.HasWeaponDoubleJump or true
+        return true
     end
 
-    return true
+    -- Airborne: try double-jump.
+    if self.State.CanDoubleJump then
+        self.State.CanDoubleJump = false
+        self:applyVerticalVelocity(CONFIG.Movement.DoubleJumpPower)
+        return true
+    end
+    return false
 end
 
+-- Sets the character's actual physics velocity (not a stored Lua field). The
+-- old version only wrote to self.Velocity, which nothing ever read — so the
+-- character never actually moved upward.
 function MovementSystem:applyVerticalVelocity(Power)
     if self.RootPart and self.Humanoid then
-        self.Velocity = Vector3.new(self.Velocity.X, Power, self.Velocity.Z)
+        local v = self.RootPart.AssemblyLinearVelocity
+        self.RootPart.AssemblyLinearVelocity = Vector3.new(v.X, Power, v.Z)
     end
 end
 
